@@ -1,0 +1,3 @@
+tags:
+  # Precisa do backend no ar: ver test/integracao/backend_test.dart
+  integracao:
