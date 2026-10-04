@@ -2,7 +2,7 @@ import 'package:auditor_vendas_front/core/api/api_exception.dart';
 import 'package:auditor_vendas_front/core/erros.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Os 33 códigos do contrato (`api/erros.go` do backend).
+/// Os 34 códigos do contrato (`api/erros.go` do backend).
 const _codigosDoContrato = [
   'REQUISICAO_INVALIDA',
   'JSON_INVALIDO',
@@ -37,11 +37,12 @@ const _codigosDoContrato = [
   'EVOLUTION_INDISPONIVEL',
   'QRCODE_INDISPONIVEL',
   'BANCO_INDISPONIVEL',
+  'LIMITE_INSTANCIAS',
 ];
 
 void main() {
   test('todos os códigos do contrato e os locais têm mensagem própria', () {
-    expect(_codigosDoContrato, hasLength(33));
+    expect(_codigosDoContrato, hasLength(34));
     for (final codigo in [
       ..._codigosDoContrato,
       ApiException.semConexao,
@@ -82,6 +83,19 @@ void main() {
         ),
       ),
       'Muitas tentativas. Tente de novo às 14:45.',
+    );
+  });
+
+  test('limite de instâncias mostra o máximo do plano', () {
+    expect(
+      mensagemDoErro(
+        const ApiException(
+          codigo: 'LIMITE_INSTANCIAS',
+          detalhes: {'max_instancias': 10, 'em_uso': 10},
+        ),
+      ),
+      'A loja atingiu o limite de 10 WhatsApps. Remova um ou fale com o '
+      'suporte.',
     );
   });
 

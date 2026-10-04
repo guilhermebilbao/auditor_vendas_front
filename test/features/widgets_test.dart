@@ -411,7 +411,9 @@ void main() {
       await tester.pump();
 
       expect(find.byType(Image), findsOneWidget);
+      expect(find.textContaining('no celular dele'), findsOneWidget);
       expect(find.textContaining('Aparelhos conectados'), findsOneWidget);
+      expect(find.textContaining('Aponte a câmera'), findsOneWidget);
       expect(find.textContaining('Evolution Manager'), findsOneWidget);
 
       // 503: continua consultando, sem apagar o QR.
@@ -422,8 +424,11 @@ void main() {
       // 409: no fluxo do QR, é o sucesso.
       await tester.pump(const Duration(seconds: 2));
       await tester.pump();
-      expect(find.text('WhatsApp conectado!'), findsOneWidget);
-      expect(find.text('+55 (48) 99999-0000'), findsOneWidget);
+      expect(
+        find.text('WhatsApp conectado: +55 (48) 99999-0000'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Evolution Manager'), findsNothing);
 
       await tester.pump(const Duration(seconds: 10));
       expect(repo.consultas, 3, reason: 'parou de consultar');
@@ -437,6 +442,22 @@ void main() {
       await tester.pump();
       expect(find.text('Gerando QR code…'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('instância removida (409): avisa que expirou e para', (
+      tester,
+    ) async {
+      final repo = _RepoQr([
+        const ApiException(status: 409, codigo: 'INSTANCIA_INDISPONIVEL'),
+      ]);
+      await abrir(tester, repo);
+      await tester.pump();
+      expect(
+        find.text('Esta conexão expirou. Comece de novo.'),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(seconds: 10));
+      expect(repo.consultas, 1, reason: 'parou de consultar');
     });
 
     testWidgets('passou do prazo sem conectar: oferece gerar um QR novo', (

@@ -8,13 +8,16 @@ import '../../core/erros.dart';
 import '../../core/formatos.dart';
 import 'admin_repo.dart';
 
-enum _Fase { gerando, qr, conectado, expirado, erro }
+enum _Fase { gerando, qr, conectado, expirado, removida, erro }
 
-/// Conexão do WhatsApp do vendedor por QR code (F06, itens 8 a 10).
+/// Conexão do WhatsApp do vendedor por QR code (spec 18, itens 5 a 9).
 ///
+/// O gestor mostra o QR na própria tela e o vendedor lê com o celular dele.
 /// Consulta `GET /instancias/{id}/qrcode` a cada [intervalo] até o celular
 /// conectar (`409 INSTANCIA_JA_CONECTADA`). Depois de [prazo] sem conectar,
-/// para e oferece gerar um QR novo. Fecha devolvendo `true` se conectou.
+/// para e oferece gerar um QR novo. Fechar só para a consulta: a instância
+/// continua em `aguardando_qr` e pode ser retomada. Fecha devolvendo `true`
+/// se conectou.
 class DialogoQr extends StatefulWidget {
   const DialogoQr({
     super.key,
@@ -86,6 +89,9 @@ class _DialogoQrState extends State<DialogoQr> {
           setState(() => _semConexao = false);
         case 'INSTANCIA_JA_CONECTADA':
           return _conectou();
+        case 'INSTANCIA_INDISPONIVEL':
+          // Removida pelo backend (ex.: 30 min sem leitura do QR).
+          return setState(() => _fase = _Fase.removida);
         case _ when e.deRede:
           setState(() => _semConexao = true);
         default:
@@ -117,8 +123,12 @@ class _DialogoQrState extends State<DialogoQr> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
-        _fase = _Fase.erro;
-        _erro = mensagemDoErro(e);
+        if (e.codigo == 'INSTANCIA_INDISPONIVEL') {
+          _fase = _Fase.removida;
+        } else {
+          _fase = _Fase.erro;
+          _erro = mensagemDoErro(e);
+        }
       });
     }
   }
@@ -127,6 +137,7 @@ class _DialogoQrState extends State<DialogoQr> {
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
     final conectado = _fase == _Fase.conectado;
+    final encerrado = conectado || _fase == _Fase.removida;
 
     final Widget corpo = switch (_fase) {
       _Fase.gerando => const Column(
@@ -147,18 +158,14 @@ class _DialogoQrState extends State<DialogoQr> {
             padding: const EdgeInsets.all(8),
             child: Image.memory(
               _imagem!,
-              width: 240,
-              height: 240,
+              width: 260,
+              height: 260,
               gaplessPlayback: true,
               semanticLabel: 'QR code para conectar o WhatsApp',
             ),
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'No celular do vendedor: WhatsApp → Aparelhos conectados → '
-            'Conectar um aparelho',
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: 16),
+          const _Instrucoes(),
         ],
       ),
       _Fase.conectado => Column(
@@ -166,8 +173,13 @@ class _DialogoQrState extends State<DialogoQr> {
         children: [
           const Icon(Icons.check_circle, color: corDentroDoSla, size: 56),
           const SizedBox(height: 12),
-          Text('WhatsApp conectado!', style: tema.textTheme.titleMedium),
-          if (_telefone.isNotEmpty) Text(formatarTelefone(_telefone)),
+          Text(
+            _telefone.isEmpty
+                ? 'WhatsApp conectado!'
+                : 'WhatsApp conectado: ${formatarTelefone(_telefone)}',
+            style: tema.textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
       _Fase.expirado => Column(
@@ -180,6 +192,10 @@ class _DialogoQrState extends State<DialogoQr> {
             child: const Text('Gerar novo QR code'),
           ),
         ],
+      ),
+      _Fase.removida => const Text(
+        'Esta conexão expirou. Comece de novo.',
+        textAlign: TextAlign.center,
       ),
       _Fase.erro => Text(
         _erro,
@@ -202,11 +218,11 @@ class _DialogoQrState extends State<DialogoQr> {
                   style: TextStyle(color: tema.colorScheme.error),
                 ),
               ),
-            if (!conectado) ...[
+            if (!encerrado) ...[
               const SizedBox(height: 16),
               Text(
-                'Não gere o QR code pelo Evolution Manager: isso desliga o '
-                'recebimento de mensagens.',
+                'Não conecte este número pelo Evolution Manager: isso desliga '
+                'o recebimento de mensagens.',
                 textAlign: TextAlign.center,
                 style: tema.textTheme.bodySmall,
               ),
@@ -219,6 +235,49 @@ class _DialogoQrState extends State<DialogoQr> {
           onPressed: () => Navigator.pop(context, conectado),
           child: Text(conectado ? 'Concluir' : 'Fechar'),
         ),
+      ],
+    );
+  }
+}
+
+/// Passos para o vendedor, que está ao lado do gestor (spec 18, item 6).
+class _Instrucoes extends StatelessWidget {
+  const _Instrucoes();
+
+  static const _passos = [
+    'Peça ao vendedor para abrir o WhatsApp no celular dele.',
+    'Toque em ⋮ / Configurações → Aparelhos conectados → Conectar um '
+        'aparelho.',
+    'Aponte a câmera do celular para este QR code.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final (i, passo) in _passos.indexed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 11,
+                  backgroundColor: tema.colorScheme.primaryContainer,
+                  child: Text(
+                    '${i + 1}',
+                    style: tema.textTheme.labelSmall?.copyWith(
+                      color: tema.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(passo)),
+              ],
+            ),
+          ),
       ],
     );
   }

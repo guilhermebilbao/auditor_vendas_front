@@ -8,6 +8,8 @@ import '../../core/formatos.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/navegacao.dart';
 import '../../widgets/selos.dart';
+import '../admin/admin_repo.dart';
+import '../admin/modelos.dart';
 import '../admin/selo_whatsapp.dart';
 import '../leads/modelos.dart';
 import 'componentes.dart';
@@ -80,7 +82,21 @@ class _VendedorTelaState extends ConsumerState<VendedorTela> {
             linhas: 1,
             aoTentarDeNovo: () => ref.invalidate(vendedorProvider(widget.id)),
             construir: (v) {
-              final (rotulo, cor) = seloDoWhatsApp(v.instancia);
+              // Ao abrir a tela, confere o status ao vivo (spec 18, item 10).
+              // Enquanto não chega, ou se falhar, vale o da lista.
+              final resumo = v.instancia;
+              final aoVivo = resumo == null
+                  ? null
+                  : ref.watch(instanciaProvider(resumo.id)).value;
+              final (rotulo, cor) = seloDoWhatsApp(
+                aoVivo == null || aoVivo.status == 'removida'
+                    ? resumo
+                    : InstanciaResumo(
+                        id: aoVivo.id,
+                        status: aoVivo.status,
+                        telefone: aoVivo.telefone,
+                      ),
+              );
               return Wrap(
                 spacing: 8,
                 runSpacing: 6,

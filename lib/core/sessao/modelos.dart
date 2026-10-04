@@ -45,6 +45,8 @@ class Loja {
     required this.slaRespostaMin,
     required this.horarioComercial,
     required this.pesosCriterios,
+    this.maxInstancias,
+    this.instanciasEmUso = 0,
   });
 
   final String id;
@@ -55,6 +57,17 @@ class Loja {
   /// Por dia (`dom`..`sab`), a lista de intervalos `[inicio, fim]` em `HH:MM`.
   final Map<String, List<List<String>>> horarioComercial;
   final Map<String, double> pesosCriterios;
+
+  /// Quantos WhatsApps a loja pode conectar (definido pelo suporte, spec 17).
+  /// `null` quando a API não informa.
+  final int? maxInstancias;
+
+  /// Instâncias que ocupam vaga: todas, menos `removida` e `erro`.
+  final int instanciasEmUso;
+
+  /// A loja chegou ao limite do plano e não pode conectar outro WhatsApp.
+  bool get noLimiteDeInstancias =>
+      maxInstancias != null && instanciasEmUso >= maxInstancias!;
 
   factory Loja.deJson(Map<String, dynamic> j) {
     final horario = <String, List<List<String>>>{};
@@ -76,6 +89,8 @@ class Loja {
       slaRespostaMin: inteiro(j['sla_resposta_min']) ?? 15,
       horarioComercial: horario,
       pesosCriterios: pesos,
+      maxInstancias: inteiro(j['max_instancias']),
+      instanciasEmUso: inteiro(j['instancias_em_uso']) ?? 0,
     );
   }
 }

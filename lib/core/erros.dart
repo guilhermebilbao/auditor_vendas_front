@@ -54,6 +54,13 @@ String mensagemDoErro(Object erro) {
       return 'Registro não encontrado.';
     case 'VENDEDOR_INATIVO':
       return 'Reative o vendedor antes de conectar o WhatsApp.';
+    case 'LIMITE_INSTANCIAS':
+      final max = erro.detalhes['max_instancias'];
+      return max == null
+          ? 'A loja atingiu o limite de WhatsApps do plano. Remova um ou fale '
+                'com o suporte.'
+          : 'A loja atingiu o limite de $max WhatsApps. Remova um ou fale com '
+                'o suporte.';
     case 'INSTANCIA_JA_ATIVA':
       return 'Este vendedor já tem um WhatsApp conectado ou pendente.';
     case 'INSTANCIA_JA_CONECTADA':

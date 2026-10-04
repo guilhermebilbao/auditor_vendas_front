@@ -7,7 +7,8 @@ import 'modelos.dart';
 (String, Color) seloDoWhatsApp(InstanciaResumo? instancia) =>
     switch (instancia?.status) {
       null => ('WhatsApp não conectado', Colors.grey),
-      'aguardando_qr' || 'criada' => ('Aguardando leitura do QR', corAlerta),
+      'aguardando_qr' ||
+      'criada' => ('Aguardando leitura do QR code', corAlerta),
       'conectada' => (
         instancia!.telefone.isEmpty
             ? 'Conectado'

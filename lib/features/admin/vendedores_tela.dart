@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/formatos.dart';
+import '../../core/sessao/modelos.dart';
+import '../../core/sessao/sessao.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/navegacao.dart';
 import '../../widgets/selos.dart';
@@ -11,7 +13,9 @@ import 'dialogo_qr.dart';
 import 'modelos.dart';
 import 'selo_whatsapp.dart';
 
-/// Vendedores e a conexão do WhatsApp de cada um (F06, itens 1 a 12).
+/// Vendedores e a conexão do WhatsApp de cada um (F06, itens 1 a 12, e
+/// spec 18 do backend). Só o admin chega aqui; o gerente vê o status do
+/// WhatsApp na tela do vendedor, sem os botões.
 class VendedoresTela extends ConsumerStatefulWidget {
   const VendedoresTela({super.key});
 
@@ -25,7 +29,21 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
 
   AdminRepo get _repo => ref.read(adminRepoProvider);
 
-  void _recarregar() => ref.invalidate(vendedoresProvider);
+  @override
+  void initState() {
+    super.initState();
+    // O contador "X de Y WhatsApps" vem da loja em `GET /me`.
+    _recarregarLoja();
+  }
+
+  void _recarregarLoja() =>
+      ref.read(sessaoProvider.notifier).recarregar().catchError((_) {});
+
+  /// Lista e contador de WhatsApps (spec 18, item 3).
+  void _recarregar() {
+    ref.invalidate(vendedoresProvider);
+    _recarregarLoja();
+  }
 
   Future<void> _acao(
     Vendedor v,
@@ -58,6 +76,18 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
     try {
       instanciaId = (await _repo.criarInstancia(v.id)).id;
     } on ApiException catch (e) {
+      // Mensagens próprias deste fluxo (spec 18, item 4).
+      final aviso = switch (e.codigo) {
+        'LIMITE_EXCEDIDO' =>
+          'Muitas tentativas em pouco tempo. Aguarde um minuto.',
+        'EVOLUTION_INDISPONIVEL' =>
+          'O serviço de WhatsApp não respondeu. Tente de novo.',
+        _ => null,
+      };
+      if (aviso != null) {
+        if (mounted) snack(context, aviso);
+        return;
+      }
       // O vendedor já tem uma instância: abre a existente.
       if (e.codigo != 'INSTANCIA_JA_ATIVA') rethrow;
       final existente = (await _repo.buscarVendedor(v.id)).instancia;
@@ -67,20 +97,19 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
     if (mounted) await _abrirQr(v, instanciaId);
   });
 
-  Future<void> _reconectar(Vendedor v) => _acao(v, () async {
-    await _repo.reconectar(v.instancia!.id);
-    if (mounted) await _abrirQr(v, v.instancia!.id);
-  });
-
-  Future<void> _atualizarStatus(Vendedor v) => _acao(v, () async {
+  /// Vai até a Evolution, corrige o status e reaplica o webhook (item 10).
+  Future<void> _verificar(Vendedor v) => _acao(v, () async {
     final instancia = await _repo.buscarInstancia(v.instancia!.id);
     if (!mounted) return;
-    final erro = instancia.ultimoErro;
-    snack(
-      context,
-      'Status: ${instancia.status}'
-      '${erro == null || erro.isEmpty ? '' : ' ($erro)'}',
+    final (rotulo, _) = seloDoWhatsApp(
+      InstanciaResumo(
+        id: instancia.id,
+        status: instancia.status,
+        telefone: instancia.telefone,
+      ),
     );
+    final erro = instancia.ultimoErro;
+    snack(context, '$rotulo${erro == null || erro.isEmpty ? '' : ' ($erro)'}');
   });
 
   Future<void> _removerWhatsApp(Vendedor v) async {
@@ -88,8 +117,8 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
       context,
       titulo: 'Remover WhatsApp',
       mensagem:
-          'O número será desvinculado de ${v.nome}; o histórico fica. '
-          'Depois, conecte de novo para usar outro número.',
+          'O número será desvinculado de ${v.nome}. O histórico de conversas '
+          'continua. Para trocar de número, conecte de novo depois.',
       acao: 'Remover',
       perigoso: true,
     );
@@ -157,6 +186,7 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
   @override
   Widget build(BuildContext context) {
     final vendedores = ref.watch(vendedoresProvider);
+    final loja = ref.watch(sessaoProvider.select((s) => s.loja));
     return Scaffold(
       appBar: AppBar(
         leading: const BotaoVoltar(destino: '/mais'),
@@ -174,6 +204,7 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
           children: [
+            if (loja?.maxInstancias != null) _ContadorWhatsApps(loja!),
             ValorAssincrono(
               valor: vendedores,
               aoTentarDeNovo: _recarregar,
@@ -182,7 +213,15 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
                       'Nenhum vendedor cadastrado.',
                       icone: Icons.badge_outlined,
                     )
-                  : Column(children: [for (final v in itens) _cartao(v)]),
+                  : Column(
+                      children: [
+                        for (final v in itens)
+                          _cartao(
+                            v,
+                            noLimite: loja?.noLimiteDeInstancias ?? false,
+                          ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -190,20 +229,23 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
     );
   }
 
-  Widget _cartao(Vendedor v) {
+  Widget _cartao(Vendedor v, {required bool noLimite}) {
     final tema = Theme.of(context);
     final ocupado = _ocupados.contains(v.id);
     final instancia = v.instancia;
     final (rotulo, cor) = seloDoWhatsApp(instancia);
 
-    // A ação sugerida depende do estado da conexão (F06, item 2).
-    final (String, VoidCallback)? acao = switch (instancia?.status) {
-      _ when !v.ativo => null,
-      null => ('Conectar WhatsApp', () => _conectar(v)),
+    // As ações dependem do estado da conexão (spec 18, item 1). `null` no
+    // callback = botão desabilitado.
+    final remover = ('Remover WhatsApp', () => _removerWhatsApp(v));
+    final List<(String, VoidCallback?)> acoes = switch (instancia?.status) {
+      _ when !v.ativo => const [],
+      null => [('Conectar WhatsApp', noLimite ? null : () => _conectar(v))],
       'aguardando_qr' ||
-      'criada' => ('Mostrar QR code', () => _abrirQr(v, instancia!.id)),
-      'desconectada' => ('Reconectar', () => _reconectar(v)),
-      _ => null,
+      'criada' => [('Mostrar QR code', () => _abrirQr(v, instancia!.id))],
+      'conectada' => [remover],
+      'desconectada' => [('Verificar', () => _verificar(v)), remover],
+      _ => const [],
     };
 
     return Padding(
@@ -230,8 +272,8 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
                       ),
                       if (instancia != null) ...[
                         PopupMenuItem(
-                          value: () => _atualizarStatus(v),
-                          child: const Text('Atualizar status'),
+                          value: () => _verificar(v),
+                          child: const Text('Verificar'),
                         ),
                         PopupMenuItem(
                           value: () => _removerWhatsApp(v),
@@ -266,17 +308,74 @@ class _VendedoresTelaState extends ConsumerState<VendedoresTela> {
                   Selo(rotulo, cor: cor, icone: Icons.chat_outlined),
                 ],
               ),
-              if (acao != null)
+              if (instancia?.status == 'desconectada')
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Desconectado: o sistema está tentando reconectar. Se o '
+                    'vendedor desvinculou o aparelho pelo celular, remova o '
+                    'WhatsApp e conecte de novo.',
+                    style: tema.textTheme.bodySmall,
+                  ),
+                ),
+              if (acoes.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: FilledButton.tonal(
-                    onPressed: ocupado ? null : acao.$2,
-                    child: Text(acao.$1),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      for (final (texto, aoTocar) in acoes)
+                        FilledButton.tonal(
+                          onPressed: ocupado ? null : aoTocar,
+                          child: Text(texto),
+                        ),
+                      if (instancia == null && noLimite)
+                        Text(
+                          'Limite do plano atingido',
+                          style: tema.textTheme.bodySmall,
+                        ),
+                    ],
                   ),
                 ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// "3 de 10 WhatsApps conectados": vagas do plano da loja (spec 17).
+class _ContadorWhatsApps extends StatelessWidget {
+  const _ContadorWhatsApps(this.loja);
+
+  final Loja loja;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final noLimite = loja.noLimiteDeInstancias;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            noLimite ? Icons.warning_amber_rounded : Icons.chat_outlined,
+            size: 18,
+            color: noLimite ? corAlerta : tema.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${loja.instanciasEmUso} de ${loja.maxInstancias} WhatsApps '
+              'conectados'
+              '${noLimite ? '. Limite do plano atingido.' : ''}',
+              style: tema.textTheme.bodyMedium,
+            ),
+          ),
+        ],
       ),
     );
   }

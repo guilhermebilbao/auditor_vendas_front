@@ -19,6 +19,12 @@ final vendedoresProvider = FutureProvider.autoDispose<List<Vendedor>>(
   (ref) => ref.watch(adminRepoProvider).vendedores(),
 );
 
+/// `GET /instancias/{id}`: status ao vivo. A consulta vai até a Evolution,
+/// corrige o status e reaplica o webhook se preciso (spec 18, item 10).
+final instanciaProvider = FutureProvider.autoDispose.family<Instancia, String>(
+  (ref, id) => ref.watch(adminRepoProvider).buscarInstancia(id),
+);
+
 final usuariosProvider = FutureProvider.autoDispose<List<Usuario>>(
   (ref) => ref.watch(adminRepoProvider).usuarios(),
 );
