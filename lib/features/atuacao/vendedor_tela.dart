@@ -69,7 +69,7 @@ class _VendedorTelaState extends ConsumerState<VendedorTela> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const BotaoVoltar(destino: '/desempenho'),
+        leading: const BotaoVoltar(destino: '/atuacao'),
         title: Text(vendedor.value?.nome ?? 'Vendedor'),
       ),
       body: ListView(

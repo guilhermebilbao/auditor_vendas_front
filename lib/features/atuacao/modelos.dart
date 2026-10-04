@@ -183,7 +183,7 @@ class PontosMelhoria {
   );
 }
 
-/// Período das telas de desempenho. Fica na URL: `?periodo=7d` ou
+/// Período das telas de atuação. Fica na URL: `?periodo=7d` ou
 /// `?desde=AAAA-MM-DD&ate=AAAA-MM-DD`.
 class Periodo {
   const Periodo(this.tipo, this.desde, this.ate);

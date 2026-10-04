@@ -109,10 +109,10 @@ final roteadorProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
-            navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'desempenho'),
+            navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'atuacao'),
             routes: [
               GoRoute(
-                path: '/desempenho',
+                path: '/atuacao',
                 pageBuilder: (context, state) => NoTransitionPage(
                   child: AtuacaoTela(
                     periodo: Periodo.daUrl(state.uri.queryParameters),
@@ -132,6 +132,12 @@ final roteadorProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      // Endereço antigo da aba Atuação: links salvos continuam funcionando.
+      GoRoute(
+        path: '/desempenho',
+        redirect: (context, state) =>
+            state.uri.replace(path: '/atuacao').toString(),
       ),
       // Detalhes ficam fora das abas: abrem em tela cheia, por cima da barra.
       GoRoute(

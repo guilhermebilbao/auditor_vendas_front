@@ -40,7 +40,7 @@ class AtuacaoTela extends ConsumerWidget {
               periodo: periodo,
               aoMudar: (p) => context.go(
                 Uri(
-                  path: '/desempenho',
+                  path: '/atuacao',
                   queryParameters: p.paraQuery(),
                 ).toString(),
               ),
