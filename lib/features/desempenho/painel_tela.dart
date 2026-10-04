@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/ciclo.dart';
 import '../../core/formatos.dart';
 import '../../core/sessao/sessao.dart';
+import '../../widgets/barra_pilula.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/navegacao.dart';
 import '../../widgets/selos.dart';
@@ -70,7 +71,12 @@ class _PainelTelaState extends ConsumerState<PainelTela> {
       body: RefreshIndicator(
         onRefresh: () => _recarregar().catchError((_) {}),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            24 + BarraPilula.folgaInferior(context),
+          ),
           children: [
             SeletorPeriodo(periodo: widget.periodo, aoMudar: _mudarPeriodo),
             const SizedBox(height: 12),

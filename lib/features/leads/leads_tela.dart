@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/ciclo.dart';
 import '../../core/formatos.dart';
+import '../../widgets/barra_pilula.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/navegacao.dart';
 import '../../widgets/selos.dart';
@@ -233,6 +234,7 @@ class _LeadsTelaState extends ConsumerState<LeadsTela> {
       child: ListView.separated(
         controller: _rolagem,
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(bottom: BarraPilula.folgaInferior(context)),
         itemCount: c.itens.length + (c.temMais ? 1 : 0),
         separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, i) {

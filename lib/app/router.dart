@@ -74,41 +74,66 @@ final roteadorProvider = Provider<GoRouter>((ref) {
         builder: (context, state) =>
             DefinirSenhaTela(token: state.uri.queryParameters['token'] ?? ''),
       ),
-      ShellRoute(
-        builder: (context, state, child) =>
-            Casca(caminho: state.uri.path, child: child),
-        routes: [
-          GoRoute(
-            path: '/',
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: PainelTela(
-                periodo: Periodo.daUrl(state.uri.queryParameters),
+      // Uma branch por aba, cada uma com o próprio Navigator. As chaves são
+      // fixas (criadas uma vez com o roteador) para o Flutter reaproveitar
+      // os Navigators — e a pilha de cada aba — entre reconstruções.
+      StatefulShellRoute(
+        builder: (context, state, navegacao) => navegacao,
+        navigatorContainerBuilder: (context, navegacao, abas) =>
+            Casca(navegacao: navegacao, abas: abas),
+        branches: [
+          StatefulShellBranch(
+            navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'painel'),
+            routes: [
+              GoRoute(
+                path: '/',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: PainelTela(
+                    periodo: Periodo.daUrl(state.uri.queryParameters),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          GoRoute(
-            path: '/leads',
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: LeadsTela(
-                filtros: FiltrosLeads.daUrl(state.uri.queryParameters),
+          StatefulShellBranch(
+            navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'leads'),
+            routes: [
+              GoRoute(
+                path: '/leads',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: LeadsTela(
+                    filtros: FiltrosLeads.daUrl(state.uri.queryParameters),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          GoRoute(
-            path: '/desempenho',
-            pageBuilder: (context, state) => NoTransitionPage(
-              child: DesempenhoTela(
-                periodo: Periodo.daUrl(state.uri.queryParameters),
+          StatefulShellBranch(
+            navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'desempenho'),
+            routes: [
+              GoRoute(
+                path: '/desempenho',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  child: DesempenhoTela(
+                    periodo: Periodo.daUrl(state.uri.queryParameters),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          GoRoute(
-            path: '/mais',
-            pageBuilder: (context, state) =>
-                const NoTransitionPage(child: MaisTela()),
+          StatefulShellBranch(
+            navigatorKey: GlobalKey<NavigatorState>(debugLabel: 'mais'),
+            routes: [
+              GoRoute(
+                path: '/mais',
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: MaisTela()),
+              ),
+            ],
           ),
         ],
       ),
+      // Detalhes ficam fora das abas: abrem em tela cheia, por cima da barra.
       GoRoute(
         path: '/leads/:id',
         builder: (context, state) => LeadTela(id: _id(state)),

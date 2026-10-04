@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/formatos.dart';
+import '../../widgets/barra_pilula.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/selos.dart';
 import 'componentes.dart';
@@ -28,7 +29,12 @@ class DesempenhoTela extends ConsumerWidget {
             .refresh(rankingProvider(consulta).future)
             .then((_) {}, onError: (_) {}),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            24 + BarraPilula.folgaInferior(context),
+          ),
           children: [
             SeletorPeriodo(
               periodo: periodo,

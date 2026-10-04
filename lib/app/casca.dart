@@ -1,74 +1,122 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/sessao/sessao.dart';
+import '../widgets/barra_pilula.dart';
+import '../widgets/estados.dart';
 import 'tema.dart';
 
-const _destinos = [
-  (rota: '/', rotulo: 'Painel', icone: Icons.dashboard_outlined),
-  (rota: '/leads', rotulo: 'Leads', icone: Icons.forum_outlined),
+const _destinos = <DestinoBarra>[
   (
-    rota: '/desempenho',
+    rotulo: 'Painel',
+    icone: Icons.dashboard_outlined,
+    iconeAtivo: Icons.dashboard,
+  ),
+  (rotulo: 'Leads', icone: Icons.forum_outlined, iconeAtivo: Icons.forum),
+  (
     rotulo: 'Desempenho',
     icone: Icons.leaderboard_outlined,
+    iconeAtivo: Icons.leaderboard,
   ),
-  (rota: '/mais', rotulo: 'Mais', icone: Icons.menu),
+  (rotulo: 'Mais', icone: Icons.menu, iconeAtivo: Icons.menu),
 ];
 
-/// Navegação principal: barra inferior no celular e menu lateral no desktop
+/// Navegação principal: barra em pílula no celular e menu lateral no desktop
 /// (F07, item 6).
+///
+/// Cada aba é uma branch do `StatefulShellRoute`, com o próprio Navigator
+/// (e a própria `GlobalKey<NavigatorState>`, ver o router). As [abas] ficam
+/// todas montadas num Stack e só a ativa aparece, então trocar de aba não
+/// perde rolagem, campos digitados nem filtros da URL.
 class Casca extends StatelessWidget {
-  const Casca({super.key, required this.caminho, required this.child});
+  const Casca({super.key, required this.navegacao, required this.abas});
 
-  final String caminho;
-  final Widget child;
+  final StatefulNavigationShell navegacao;
+  final List<Widget> abas;
+
+  void _irPara(int i) {
+    // Tocar de novo na aba ativa volta para a raiz dela; nas outras, volta
+    // para onde o usuário estava naquela aba.
+    navegacao.goBranch(i, initialLocation: i == navegacao.currentIndex);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final indice = switch (caminho) {
-      '/' => 0,
-      final c when c.startsWith('/leads') => 1,
-      final c when c.startsWith('/desempenho') => 2,
-      _ => 3,
-    };
-    void irPara(int i) => context.go(_destinos[i].rota);
+    final indice = navegacao.currentIndex;
+    final conteudo = Stack(
+      children: [
+        for (final (i, aba) in abas.indexed)
+          Offstage(
+            offstage: i != indice,
+            // Offstage esconde mas não pausa animações; sem o TickerMode, os
+            // indicadores de carregamento das abas escondidas continuariam
+            // pedindo quadros.
+            child: TickerMode(enabled: i == indice, child: aba),
+          ),
+      ],
+    );
 
-    if (ehDesktop(context)) {
-      return Scaffold(
-        body: Row(
-          children: [
-            NavigationRail(
-              extended: true,
-              selectedIndex: indice,
-              onDestinationSelected: irPara,
-              destinations: [
-                for (final d in _destinos)
-                  NavigationRailDestination(
-                    icon: Icon(d.icone),
-                    label: Text(d.rotulo),
+    return PopScope(
+      // A aba ativa já tentou voltar dentro dela antes de chegar aqui (o
+      // go_router consulta primeiro o Navigator da branch). Então este é o
+      // voltar "na raiz da aba": vai para o Painel e, no Painel, confirma a
+      // saída. Só no Android: no iOS não há voltar do sistema e o
+      // SystemNavigator.pop é ignorado.
+      canPop: indice == 0 && !_ehAndroid,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (indice != 0) return _irPara(0);
+        final sair = await confirmar(
+          context,
+          titulo: 'Sair do aplicativo',
+          mensagem: 'Deseja mesmo sair do Auditor de Vendas?',
+          acao: 'Sair',
+        );
+        if (sair) await SystemNavigator.pop();
+      },
+      child: ehDesktop(context)
+          ? Scaffold(
+              body: Row(
+                children: [
+                  NavigationRail(
+                    extended: true,
+                    selectedIndex: indice,
+                    onDestinationSelected: _irPara,
+                    destinations: [
+                      for (final d in _destinos)
+                        NavigationRailDestination(
+                          icon: Icon(d.icone),
+                          selectedIcon: Icon(d.iconeAtivo),
+                          label: Text(d.rotulo),
+                        ),
+                    ],
                   ),
-              ],
+                  const VerticalDivider(width: 1),
+                  Expanded(child: conteudo),
+                ],
+              ),
+            )
+          : Scaffold(
+              // O conteúdo passa por trás da pílula; é isso que dá sentido ao
+              // vidro. As listas das abas compensam com
+              // BarraPilula.folgaInferior.
+              extendBody: true,
+              body: EscopoBarraPilula(child: conteudo),
+              bottomNavigationBar: BarraPilula(
+                destinos: _destinos,
+                indiceAtual: indice,
+                aoSelecionar: _irPara,
+              ),
             ),
-            const VerticalDivider(width: 1),
-            Expanded(child: child),
-          ],
-        ),
-      );
-    }
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: indice,
-        onDestinationSelected: irPara,
-        destinations: [
-          for (final d in _destinos)
-            NavigationDestination(icon: Icon(d.icone), label: d.rotulo),
-        ],
-      ),
     );
   }
 }
+
+bool get _ehAndroid =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
 /// Aba "Mais": conta, administração (só para admin) e sair.
 class MaisTela extends ConsumerWidget {
@@ -92,6 +140,7 @@ class MaisTela extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Mais')),
       body: ListView(
+        padding: EdgeInsets.only(bottom: BarraPilula.folgaInferior(context)),
         children: [
           ListTile(
             leading: CircleAvatar(
