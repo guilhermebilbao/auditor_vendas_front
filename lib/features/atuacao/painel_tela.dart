@@ -11,7 +11,7 @@ import '../../widgets/navegacao.dart';
 import '../../widgets/selos.dart';
 import '../leads/modelos.dart';
 import 'componentes.dart';
-import 'desempenho_repo.dart';
+import 'atuacao_repo.dart';
 import 'modelos.dart';
 
 /// Painel inicial (F05, itens 1 a 5). Nenhuma chamada daqui usa IA.

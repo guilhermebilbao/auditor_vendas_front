@@ -11,7 +11,7 @@ import '../features/auth/conta_tela.dart';
 import '../features/auth/definir_senha_tela.dart';
 import '../features/auth/esqueci_senha_tela.dart';
 import '../features/auth/login_tela.dart';
-import '../features/atuacao/desempenho_tela.dart';
+import '../features/atuacao/atuacao_tela.dart';
 import '../features/atuacao/modelos.dart';
 import '../features/atuacao/painel_tela.dart';
 import '../features/atuacao/vendedor_tela.dart';
@@ -114,7 +114,7 @@ final roteadorProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/desempenho',
                 pageBuilder: (context, state) => NoTransitionPage(
-                  child: DesempenhoTela(
+                  child: AtuacaoTela(
                     periodo: Periodo.daUrl(state.uri.queryParameters),
                   ),
                 ),

@@ -7,12 +7,12 @@ import '../../widgets/barra_pilula.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/selos.dart';
 import 'componentes.dart';
-import 'desempenho_repo.dart';
+import 'atuacao_repo.dart';
 import 'modelos.dart';
 
 /// Ranking da equipe (F05, itens 6 a 8).
-class DesempenhoTela extends ConsumerWidget {
-  const DesempenhoTela({super.key, required this.periodo});
+class AtuacaoTela extends ConsumerWidget {
+  const AtuacaoTela({super.key, required this.periodo});
 
   final Periodo periodo;
 

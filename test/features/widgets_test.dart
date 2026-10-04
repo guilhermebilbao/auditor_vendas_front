@@ -7,7 +7,7 @@ import 'package:auditor_vendas_front/features/auditoria/analise_view.dart';
 import 'package:auditor_vendas_front/features/auditoria/modelos.dart';
 import 'package:auditor_vendas_front/features/auditoria/painel_auditorias.dart';
 import 'package:auditor_vendas_front/features/conversa/conversa_view.dart';
-import 'package:auditor_vendas_front/features/atuacao/desempenho_tela.dart';
+import 'package:auditor_vendas_front/features/atuacao/atuacao_tela.dart';
 import 'package:auditor_vendas_front/features/atuacao/modelos.dart';
 import 'package:auditor_vendas_front/features/atuacao/vendedor_tela.dart';
 import 'package:auditor_vendas_front/features/leads/modelos.dart';
@@ -268,7 +268,7 @@ void main() {
     });
   });
 
-  group('desempenho', () {
+  group('atuação', () {
     testWidgets('ranking: vendedor sem nota aparece sem posição e com "—"', (
       tester,
     ) async {

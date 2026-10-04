@@ -8,9 +8,9 @@ import '../leads/leads_repo.dart';
 import '../leads/modelos.dart';
 import 'modelos.dart';
 
-final desempenhoRepoProvider = Provider<DesempenhoRepo>((ref) {
+final atuacaoRepoProvider = Provider<AtuacaoRepo>((ref) {
   ref.watch(usuarioAtualProvider);
-  return DesempenhoRepo(ref.watch(clienteApiProvider));
+  return AtuacaoRepo(ref.watch(clienteApiProvider));
 });
 
 typedef ConsultaMetricas = ({String desde, String ate, int? vendedorId});
@@ -18,7 +18,7 @@ typedef ConsultaMetricas = ({String desde, String ate, int? vendedorId});
 final metricasProvider = FutureProvider.autoDispose
     .family<MetricasAgregadas, ConsultaMetricas>(
       (ref, c) => ref
-          .watch(desempenhoRepoProvider)
+          .watch(atuacaoRepoProvider)
           .metricas(desde: c.desde, ate: c.ate, vendedorId: c.vendedorId),
     );
 
@@ -35,22 +35,22 @@ final esquecidosProvider = FutureProvider.autoDispose
 final rankingProvider = FutureProvider.autoDispose
     .family<List<ItemRanking>, ({String desde, String ate})>(
       (ref, c) =>
-          ref.watch(desempenhoRepoProvider).ranking(desde: c.desde, ate: c.ate),
+          ref.watch(atuacaoRepoProvider).ranking(desde: c.desde, ate: c.ate),
     );
 
 final vendedorProvider = FutureProvider.autoDispose.family<Vendedor, int>(
-  (ref, id) => ref.watch(desempenhoRepoProvider).vendedor(id),
+  (ref, id) => ref.watch(atuacaoRepoProvider).vendedor(id),
 );
 
 final evolucaoProvider = FutureProvider.autoDispose
     .family<List<PontoEvolucao>, ({int vendedorId, String agrupamento})>(
       (ref, c) => ref
-          .watch(desempenhoRepoProvider)
+          .watch(atuacaoRepoProvider)
           .evolucao(c.vendedorId, agrupamento: c.agrupamento),
     );
 
-class DesempenhoRepo {
-  const DesempenhoRepo(this._api);
+class AtuacaoRepo {
+  const AtuacaoRepo(this._api);
 
   final ClienteApi _api;
 

@@ -19,7 +19,7 @@ import 'package:auditor_vendas_front/core/sessao/armazenamento_token.dart';
 import 'package:auditor_vendas_front/core/sessao/modelos.dart';
 import 'package:auditor_vendas_front/features/admin/admin_repo.dart';
 import 'package:auditor_vendas_front/features/auditoria/auditoria_repo.dart';
-import 'package:auditor_vendas_front/features/atuacao/desempenho_repo.dart';
+import 'package:auditor_vendas_front/features/atuacao/atuacao_repo.dart';
 import 'package:auditor_vendas_front/features/atuacao/modelos.dart';
 import 'package:auditor_vendas_front/features/leads/leads_repo.dart';
 import 'package:auditor_vendas_front/features/leads/modelos.dart';
@@ -42,7 +42,7 @@ void main() {
   final api = ClienteApi(armazenamento: cofre, urlBase: url);
   final leads = LeadsRepo(api);
   final auditorias = AuditoriaRepo(api);
-  final desempenho = DesempenhoRepo(api);
+  final atuacao = AtuacaoRepo(api);
   final admin = AdminRepo(api);
   final periodo = Periodo.deTipo('30d');
 
@@ -247,18 +247,15 @@ void main() {
     );
   });
 
-  group('desempenho (sem IA)', () {
+  group('atuação (sem IA)', () {
     test('métricas agregadas e por vendedor', () async {
-      final m = await desempenho.metricas(
-        desde: periodo.desde,
-        ate: periodo.ate,
-      );
+      final m = await atuacao.metricas(desde: periodo.desde, ate: periodo.ate);
       expect(m.slaRespostaSeg, greaterThan(0));
       expect(m.total.leads, greaterThanOrEqualTo(m.porVendedor.length));
       for (final g in m.porVendedor) {
         expect(g.vendedorId, isNotNull);
         expect(g.vendedorNome, isNotEmpty);
-        final filtrado = await desempenho.metricas(
+        final filtrado = await atuacao.metricas(
           desde: periodo.desde,
           ate: periodo.ate,
           vendedorId: g.vendedorId,
@@ -268,7 +265,7 @@ void main() {
     });
 
     test('ranking e evolução de cada vendedor', () async {
-      final ranking = await desempenho.ranking(
+      final ranking = await atuacao.ranking(
         desde: periodo.desde,
         ate: periodo.ate,
       );
@@ -278,10 +275,10 @@ void main() {
       expect(semPosicao.map((i) => i.posicao), everyElement(isNull));
 
       final item = ranking.first;
-      final vendedor = await desempenho.vendedor(item.vendedorId);
+      final vendedor = await atuacao.vendedor(item.vendedorId);
       expect(vendedor.nome, item.vendedorNome);
       for (final agrupamento in ['semana', 'mes']) {
-        final pontos = await desempenho.evolucao(
+        final pontos = await atuacao.evolucao(
           item.vendedorId,
           agrupamento: agrupamento,
         );

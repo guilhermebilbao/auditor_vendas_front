@@ -11,7 +11,7 @@ import '../../widgets/selos.dart';
 import '../admin/selo_whatsapp.dart';
 import '../leads/modelos.dart';
 import 'componentes.dart';
-import 'desempenho_repo.dart';
+import 'atuacao_repo.dart';
 import 'modelos.dart';
 
 /// Vendedor: evolução, métricas e pontos de melhoria (F05, itens 9 a 13).
@@ -42,7 +42,7 @@ class _VendedorTelaState extends ConsumerState<VendedorTela> {
     });
     try {
       final pontos = await ref
-          .read(desempenhoRepoProvider)
+          .read(atuacaoRepoProvider)
           .pontosDeMelhoria(
             widget.id,
             desde: _periodo.desde,
