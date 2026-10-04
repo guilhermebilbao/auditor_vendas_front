@@ -23,7 +23,7 @@ class DesempenhoTela extends ConsumerWidget {
     final tema = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Desempenho da equipe')),
+      appBar: AppBar(title: const Text('Atuação')),
       body: RefreshIndicator(
         onRefresh: () => ref
             .refresh(rankingProvider(consulta).future)
