@@ -17,7 +17,7 @@ const _destinos = <DestinoBarra>[
   ),
   (rotulo: 'Leads', icone: Icons.forum_outlined, iconeAtivo: Icons.forum),
   (
-    rotulo: 'Desempenho',
+    rotulo: 'Atuação',
     icone: Icons.leaderboard_outlined,
     iconeAtivo: Icons.leaderboard,
   ),
