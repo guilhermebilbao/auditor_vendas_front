@@ -77,6 +77,27 @@ String mensagemDoErro(Object erro) {
       return 'A IA não conseguiu concluir a análise.';
     case 'IA_TIMEOUT':
       return 'A análise demorou demais.';
+    case 'LOJA_INATIVA':
+      return switch (erro.detalhes['estado']) {
+        'suspensa' =>
+          'A assinatura está suspensa: os dados estão disponíveis só para '
+              'consulta.',
+        'em_revisao' => 'Sua loja está em análise.',
+        'trial_encerrado' =>
+          'O teste grátis terminou. Conclua a assinatura para continuar.',
+        _ => 'A loja ainda não foi liberada: falta confirmar o pagamento.',
+      };
+    case 'COTA_TRIAL_ESGOTADA':
+      final limite = erro.detalhes['limite'];
+      final quantas = limite == null || limite == 1
+          ? '1 auditoria'
+          : '$limite auditorias';
+      return 'No teste grátis, dá para fazer $quantas por dia. A próxima fica '
+          'liberada amanhã.';
+    case 'LOJA_CANCELADA':
+      return 'A assinatura desta loja foi cancelada.';
+    case 'CADASTRO_INDISPONIVEL':
+      return 'O cadastro pelo app não está disponível. Fale com o suporte.';
     case 'BANCO_INDISPONIVEL':
     case 'ERRO_INTERNO':
       return 'Erro no servidor.$suporte';

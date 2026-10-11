@@ -11,11 +11,15 @@ import 'modelos.dart';
 enum StatusSessao { iniciando, semConexao, deslogado, logado }
 
 class EstadoSessao {
-  const EstadoSessao(this.status, {this.usuario, this.loja});
+  const EstadoSessao(this.status, {this.usuario, this.loja, this.aviso});
 
   final StatusSessao status;
   final Usuario? usuario;
   final Loja? loja;
+
+  /// Por que a sessão terminou sem o usuário pedir (ex.: loja cancelada).
+  /// A tela de login mostra.
+  final String? aviso;
 
   bool get logado => status == StatusSessao.logado;
   bool get admin => usuario?.admin ?? false;
@@ -53,7 +57,8 @@ class SessaoNotifier extends Notifier<EstadoSessao> {
           loja: s.loja,
         );
       })
-      ..aoPerder = () => state = const EstadoSessao(StatusSessao.deslogado);
+      ..aoPerder = (() => state = const EstadoSessao(StatusSessao.deslogado))
+      ..aoLojaInativa = _lojaInativa;
     Future.microtask(restaurar);
     return const EstadoSessao(StatusSessao.iniciando);
   }
@@ -83,6 +88,28 @@ class SessaoNotifier extends Notifier<EstadoSessao> {
     state = const EstadoSessao(StatusSessao.deslogado);
   }
 
+  Future<void>? _relendoEstado;
+
+  /// A loja mudou de estado no meio do uso (spec 19, item 37): relê o `/me`
+  /// para o roteador levar à tela certa. Loja cancelada encerra a sessão.
+  void _lojaInativa(String codigo) {
+    if (codigo == 'LOJA_CANCELADA') {
+      unawaited(
+        _api.sessao.sair().whenComplete(
+          () => state = const EstadoSessao(
+            StatusSessao.deslogado,
+            aviso: 'A assinatura desta loja foi cancelada.',
+          ),
+        ),
+      );
+      return;
+    }
+    // Várias telas podem receber o 403 juntas: uma releitura basta.
+    _relendoEstado ??= recarregar()
+        .catchError((_) {})
+        .whenComplete(() => _relendoEstado = null);
+  }
+
   /// `GET /me`: usuário e loja atuais (F01, item 9).
   Future<void> recarregar() async {
     final resposta = await _api.get('/me');
@@ -105,6 +132,31 @@ class SessaoNotifier extends Notifier<EstadoSessao> {
     corpo: {'email': email.trim()},
     publica: true,
   );
+
+  /// `POST /cadastro`: a resposta é sempre a mesma, exista ou não o e-mail
+  /// (spec 19, item 2).
+  Future<void> cadastrar({
+    required String nomeLoja,
+    required String nome,
+    required String email,
+    required String cpfCnpj,
+    required String versaoTermos,
+  }) => _api.post(
+    '/cadastro',
+    corpo: {
+      'nome_loja': nomeLoja.trim(),
+      'nome': nome.trim(),
+      'email': email.trim(),
+      'cpf_cnpj': cpfCnpj,
+      'aceite_termos': true,
+      'versao_termos': versaoTermos,
+    },
+    publica: true,
+  );
+
+  /// Cria a loja e já entra; o roteador leva à tela de pagamento pendente.
+  Future<void> confirmarCadastro(String token, String senha) =>
+      _api.sessao.confirmarCadastro(token, senha);
 
   Future<void> definirSenha(String token, String senha) => _api.post(
     '/auth/definir-senha',

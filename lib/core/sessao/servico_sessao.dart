@@ -31,6 +31,10 @@ class ServicoSessao {
   /// Chamado quando a sessão deixa de valer (refresh recusado, `NAO_AUTENTICADO`).
   void Function()? aoPerder;
 
+  /// Chamado quando uma rota responde `403 LOJA_INATIVA` ou `LOJA_CANCELADA`:
+  /// a loja mudou de estado no meio do uso (spec 19, item 37).
+  void Function(String codigo)? aoLojaInativa;
+
   static final _publica = Options(extra: {rotaPublica: true});
 
   bool get _expiraLogo {
@@ -100,6 +104,21 @@ class ServicoSessao {
       final resposta = await _dio.post<dynamic>(
         '/auth/login',
         data: {'email': email.trim(), 'senha': senha},
+        options: _publica,
+      );
+      return await _aplicar(Sessao.deJson(mapa(resposta.data)));
+    } on DioException catch (e) {
+      throw ApiException.deDio(e);
+    }
+  }
+
+  /// Confirma o autocadastro: a loja e o admin nascem e a resposta já é a
+  /// sessão, como no login (spec 19, item 5).
+  Future<Sessao> confirmarCadastro(String token, String senha) async {
+    try {
+      final resposta = await _dio.post<dynamic>(
+        '/cadastro/confirmar',
+        data: {'token': token, 'senha': senha},
         options: _publica,
       );
       return await _aplicar(Sessao.deJson(mapa(resposta.data)));

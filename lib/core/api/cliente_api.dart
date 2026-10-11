@@ -147,9 +147,15 @@ class AuthInterceptor extends Interceptor {
     ErrorInterceptorHandler handler,
   ) async {
     final options = err.requestOptions;
-    if (options.extra[rotaPublica] == true || err.response?.statusCode != 401) {
+    if (options.extra[rotaPublica] == true) return handler.next(err);
+    if (err.response?.statusCode == 403) {
+      final codigo = ApiException.deDio(err).codigo;
+      if (codigo == 'LOJA_INATIVA' || codigo == 'LOJA_CANCELADA') {
+        _sessao.aoLojaInativa?.call(codigo);
+      }
       return handler.next(err);
     }
+    if (err.response?.statusCode != 401) return handler.next(err);
 
     final codigo = ApiException.deDio(err).codigo;
     final jaRepetida = options.extra[_repetida] == true;

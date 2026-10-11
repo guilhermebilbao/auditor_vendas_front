@@ -18,3 +18,18 @@ String get apiUrl {
 /// Fuso das lojas (`America/Sao_Paulo`). O Brasil não tem horário de verão
 /// desde 2019, então o deslocamento é fixo.
 const fusoLoja = Duration(hours: -3);
+
+/// Termos de uso e política de privacidade mostrados no cadastro (spec 19).
+/// A [versaoTermos] vai junto com o aceite; mude-a quando o texto mudar.
+const urlTermos = String.fromEnvironment(
+  'URL_TERMOS',
+  defaultValue: 'https://auditordevendas.com.br/termos',
+);
+const urlPrivacidade = String.fromEnvironment(
+  'URL_PRIVACIDADE',
+  defaultValue: 'https://auditordevendas.com.br/privacidade',
+);
+const versaoTermos = String.fromEnvironment(
+  'VERSAO_TERMOS',
+  defaultValue: '2026-10',
+);

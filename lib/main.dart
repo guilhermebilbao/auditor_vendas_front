@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/router.dart';
 import 'app/tema.dart';
 import 'core/sessao/sessao.dart';
+import 'widgets/logo.dart';
+import 'features/assinatura/loja_inativa_tela.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +24,7 @@ class App extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(sessaoProvider.select((s) => s.status));
     return MaterialApp.router(
-      title: 'Auditor de Vendas',
+      title: 'EmplaKey',
       debugShowCheckedModeBanner: false,
       routerConfig: ref.watch(roteadorProvider),
       scaffoldMessengerKey: chaveMensagens,
@@ -37,7 +39,13 @@ class App extends ConsumerWidget {
         StatusSessao.semConexao => _Abertura(
           aoTentarDeNovo: () => ref.read(sessaoProvider.notifier).restaurar(),
         ),
-        _ => child!,
+        _ => FaixaDaLoja(
+          aoTocarSuspensa: () =>
+              ref.read(roteadorProvider).push('/loja-inativa'),
+          aoAbrirAssinatura: () =>
+              ref.read(roteadorProvider).push('/admin/loja'),
+          child: child!,
+        ),
       },
     );
   }
@@ -50,15 +58,12 @@ class _Abertura extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tema = Theme.of(context);
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.fact_check, size: 56, color: tema.colorScheme.primary),
-            const SizedBox(height: 12),
-            Text('Auditor de Vendas', style: tema.textTheme.titleLarge),
+            const LogoApp(largura: 240),
             const SizedBox(height: 24),
             if (aoTentarDeNovo == null)
               const CircularProgressIndicator()

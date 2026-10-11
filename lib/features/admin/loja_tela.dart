@@ -7,6 +7,8 @@ import '../../core/sessao/sessao.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/navegacao.dart';
 import '../../widgets/selos.dart';
+import '../assinatura/assinatura_repo.dart';
+import '../assinatura/loja_inativa_tela.dart';
 import 'admin_repo.dart';
 
 const _nomesDosDias = {
@@ -160,6 +162,7 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
+                  const _SecaoAssinatura(),
                   TextFormField(
                     controller: _nome,
                     decoration: const InputDecoration(
@@ -306,3 +309,94 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     );
   }
 }
+
+/// Assinatura, só de leitura e sem link de pagamento (spec 19, item 38). Loja de
+/// contrato, sem plano, não mostra nada. No teste grátis, mostra o prazo, as
+/// cotas de hoje e o "Quero assinar", que manda o link por e-mail (spec 20).
+class _SecaoAssinatura extends ConsumerWidget {
+  const _SecaoAssinatura();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final assinatura = ref.watch(assinaturaProvider).value;
+    if (assinatura == null || assinatura.planoNome == null) {
+      return const SizedBox.shrink();
+    }
+    final inadimplente = assinatura.inadimplenteDesde;
+    final trialAte = assinatura.trialAte;
+    final emTrial = assinatura.estado == EstadoLoja.trial && trialAte != null;
+    final situacao = switch (assinatura.estado) {
+      _ when emTrial => 'Teste grátis até ${formatarData(trialAte)}',
+      'trial_encerrado' => 'Teste grátis encerrado',
+      'suspensa' => 'Suspensa',
+      'em_revisao' => 'Em análise',
+      'aguardando_pagamento' => 'Aguardando o primeiro pagamento',
+      _ when inadimplente != null =>
+        'Pagamento em atraso desde ${formatarData(inadimplente)}',
+      _ => 'Em dia',
+    };
+    final maximo = assinatura.planoMaxInstancias;
+    final proxima = assinatura.proximaCobranca;
+    final cartao = Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.workspace_premium_outlined),
+            title: Text('Plano ${assinatura.planoNome}'),
+            subtitle: maximo == null ? null : Text('Até $maximo WhatsApps'),
+          ),
+          if (emTrial) ...[
+            ListTile(
+              leading: const Icon(Icons.hourglass_bottom),
+              title: const Text('Limites do teste grátis'),
+              subtitle: Text(
+                [
+                  if (ref.watch(sessaoProvider).loja?.maxInstancias
+                      case final max?)
+                    'Até $max WhatsApps',
+                  if (assinatura.auditoriasRestantesHoje case final n?)
+                    _restantes(n, 'auditoria', 'auditorias'),
+                  if (assinatura.transcricoesRestantesHoje case final n?)
+                    _restantes(
+                      n,
+                      'transcrição de áudio',
+                      'transcrições de áudio',
+                    ),
+                ].join('\n'),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: BotaoLinkPagamento(rotulo: 'Quero assinar'),
+            ),
+          ],
+          ListTile(
+            leading: const Icon(Icons.event_outlined),
+            title: const Text('Próxima cobrança'),
+            subtitle: Text(
+              proxima == null ? '—' : formatarDiaCalendario(proxima),
+            ),
+          ),
+          ListTile(
+            leading: Icon(
+              inadimplente == null && (assinatura.estado == 'ativa' || emTrial)
+                  ? Icons.check_circle_outline
+                  : Icons.warning_amber_outlined,
+            ),
+            title: const Text('Situação'),
+            subtitle: Text(situacao),
+          ),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [const TituloSecao('Assinatura'), cartao],
+    );
+  }
+}
+
+/// "Hoje: 1 auditoria restante" / "Hoje: 0 auditorias restantes".
+String _restantes(int n, String singular, String plural) =>
+    n == 1 ? 'Hoje: 1 $singular restante' : 'Hoje: $n $plural restantes';

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/formatos.dart';
+import '../core/sessao/modelos.dart';
 import '../core/sessao/sessao.dart';
 import '../widgets/barra_pilula.dart';
 import '../widgets/estados.dart';
@@ -72,7 +74,7 @@ class Casca extends StatelessWidget {
         final sair = await confirmar(
           context,
           titulo: 'Sair do aplicativo',
-          mensagem: 'Deseja mesmo sair do Auditor de Vendas?',
+          mensagem: 'Deseja mesmo sair do EmplaKey?',
           acao: 'Sair',
         );
         if (sair) await SystemNavigator.pop();
@@ -126,6 +128,9 @@ class MaisTela extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessao = ref.watch(sessaoProvider);
     final tema = Theme.of(context);
+    final trialAte = sessao.loja?.emTrial == true
+        ? sessao.loja?.trialAte
+        : null;
 
     Widget item(IconData icone, String titulo, String rota, [String? detalhe]) {
       return ListTile(
@@ -154,6 +159,21 @@ class MaisTela extends ConsumerWidget {
               '${sessao.admin ? 'Administrador' : 'Gerente'}',
             ),
           ),
+          if (trialAte != null)
+            // Spec 20: dias que faltam no teste grátis; o admin vai à assinatura.
+            ListTile(
+              leading: Icon(
+                Icons.hourglass_bottom,
+                color: tema.colorScheme.primary,
+              ),
+              title: Text(textoDiasDeTrial(trialAte)),
+              subtitle: Text(
+                'Até ${formatarData(trialAte)}'
+                '${sessao.admin ? ' · Toque para assinar' : ''}',
+              ),
+              trailing: sessao.admin ? const Icon(Icons.chevron_right) : null,
+              onTap: sessao.admin ? () => context.push('/admin/loja') : null,
+            ),
           const Divider(),
           item(Icons.person_outline, 'Minha conta', '/conta', 'Trocar a senha'),
           if (sessao.admin) ...[

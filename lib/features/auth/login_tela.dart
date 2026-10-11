@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/erros.dart';
 import '../../core/sessao/sessao.dart';
+import '../../widgets/logo.dart';
 
 /// Moldura das telas públicas: formulário centralizado e estreito.
 class MolduraPublica extends StatelessWidget {
@@ -25,17 +26,7 @@ class MolduraPublica extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(
-                    Icons.fact_check,
-                    size: 48,
-                    color: tema.colorScheme.primary,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Auditor de Vendas',
-                    textAlign: TextAlign.center,
-                    style: tema.textTheme.titleMedium,
-                  ),
+                  const Center(child: LogoApp()),
                   const SizedBox(height: 24),
                   Text(titulo, style: tema.textTheme.headlineSmall),
                   const SizedBox(height: 16),
@@ -96,18 +87,28 @@ class _LoginTelaState extends ConsumerState<LoginTela> {
     );
     if (link == null || !mounted) return;
     // Aceita o link inteiro do e-mail ou só o token.
-    final token = Uri.tryParse(link)?.queryParameters['token'] ?? link;
+    final uri = Uri.tryParse(link);
+    final token = uri?.queryParameters['token'] ?? link;
+    final destino = (uri?.path ?? '').endsWith('confirmar-cadastro')
+        ? '/confirmar-cadastro'
+        : '/definir-senha';
     context.push(
-      Uri(path: '/definir-senha', queryParameters: {'token': token}).toString(),
+      Uri(path: destino, queryParameters: {'token': token}).toString(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final cores = Theme.of(context).colorScheme;
+    // Ex.: a loja foi cancelada enquanto o app estava aberto.
+    final aviso = ref.watch(sessaoProvider.select((s) => s.aviso));
     return MolduraPublica(
       titulo: 'Entrar',
       filhos: [
+        if (aviso != null && _erro == null) ...[
+          Text(aviso, style: TextStyle(color: cores.error)),
+          const SizedBox(height: 12),
+        ],
         Form(
           key: _formulario,
           child: AutofillGroup(
@@ -165,7 +166,12 @@ class _LoginTelaState extends ConsumerState<LoginTela> {
         ),
         TextButton(
           onPressed: _abrirLink,
-          child: const Text('Recebi um link de convite ou de senha'),
+          child: const Text('Recebi um link por e-mail'),
+        ),
+        const Divider(height: 32),
+        OutlinedButton(
+          onPressed: () => context.push('/cadastro'),
+          child: const Text('Criar conta para a minha loja'),
         ),
       ],
     );

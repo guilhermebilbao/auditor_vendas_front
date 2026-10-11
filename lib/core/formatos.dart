@@ -18,6 +18,10 @@ String formatarData(DateTime instante) {
   return '${_dois(d.day)}/${_dois(d.month)}/${d.year}';
 }
 
+/// Dia de calendário (sem horário, sem fuso), como `proxima_cobranca`.
+String formatarDiaCalendario(DateTime dia) =>
+    '${_dois(dia.day)}/${_dois(dia.month)}/${dia.year}';
+
 /// `AAAA-MM-DD`, o formato dos filtros `desde` e `ate`.
 String dataIso(DateTime dia) =>
     '${dia.year}-${_dois(dia.month)}-${_dois(dia.day)}';

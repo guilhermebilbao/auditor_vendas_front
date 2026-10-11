@@ -1,4 +1,5 @@
 import '../api/pagina.dart';
+import '../formatos.dart';
 
 class Usuario {
   const Usuario({
@@ -34,6 +35,17 @@ class Usuario {
   );
 }
 
+/// Estados da loja (specs 19 e 20).
+abstract final class EstadoLoja {
+  static const aguardandoPagamento = 'aguardando_pagamento';
+  static const emRevisao = 'em_revisao';
+  static const ativa = 'ativa';
+  static const suspensa = 'suspensa';
+  static const cancelada = 'cancelada';
+  static const trial = 'trial';
+  static const trialEncerrado = 'trial_encerrado';
+}
+
 /// Chaves dos dias em `horario_comercial`, na ordem de exibição.
 const diasDaSemana = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
 
@@ -47,6 +59,9 @@ class Loja {
     required this.pesosCriterios,
     this.maxInstancias,
     this.instanciasEmUso = 0,
+    this.estado = EstadoLoja.ativa,
+    this.inadimplenteDesde,
+    this.trialAte,
   });
 
   final String id;
@@ -64,6 +79,28 @@ class Loja {
 
   /// Instâncias que ocupam vaga: todas, menos `removida` e `erro`.
   final int instanciasEmUso;
+
+  /// Estado da assinatura (spec 19). Diferente de `ativa`, o app mostra a tela
+  /// de loja inativa; em `suspensa`, só a faixa de aviso.
+  final String estado;
+
+  /// Pagamento em atraso desde esta data; a loja é suspensa depois da carência.
+  final DateTime? inadimplenteDesde;
+
+  /// Fim do teste grátis (spec 20); `null` se a loja nunca teve trial.
+  final DateTime? trialAte;
+
+  bool get suspensa => estado == EstadoLoja.suspensa;
+
+  /// No teste grátis: usa tudo, com cotas, até [trialAte].
+  bool get emTrial => estado == EstadoLoja.trial;
+
+  /// A loja não pode usar o app: pagamento pendente, em revisão ou teste
+  /// grátis encerrado sem pagamento.
+  bool get bloqueada =>
+      estado == EstadoLoja.aguardandoPagamento ||
+      estado == EstadoLoja.emRevisao ||
+      estado == EstadoLoja.trialEncerrado;
 
   /// A loja chegou ao limite do plano e não pode conectar outro WhatsApp.
   bool get noLimiteDeInstancias =>
@@ -91,8 +128,29 @@ class Loja {
       pesosCriterios: pesos,
       maxInstancias: inteiro(j['max_instancias']),
       instanciasEmUso: inteiro(j['instancias_em_uso']) ?? 0,
+      // Backend sem a spec 19 não manda o estado: a loja está ativa.
+      estado: texto(j['estado']).isEmpty
+          ? EstadoLoja.ativa
+          : texto(j['estado']),
+      inadimplenteDesde: data(j['inadimplente_desde']),
+      trialAte: data(j['trial_ate']),
     );
   }
+}
+
+/// Texto da faixa do teste grátis: dias que faltam até [fim], contados pelo
+/// calendário da loja (spec 20, item 30).
+String textoDiasDeTrial(DateTime fim, {DateTime? agora}) {
+  final d = noFusoLoja(fim);
+  final dias = DateTime(
+    d.year,
+    d.month,
+    d.day,
+  ).difference(hojeNaLoja(agora)).inDays;
+  if (dias <= 0) return 'Último dia do teste grátis';
+  return dias == 1
+      ? 'Teste grátis: falta 1 dia'
+      : 'Teste grátis: faltam $dias dias';
 }
 
 /// Resposta de `POST /auth/login` e `POST /auth/refresh`.

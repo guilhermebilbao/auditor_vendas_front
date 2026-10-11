@@ -7,6 +7,8 @@ import '../features/admin/loja_tela.dart';
 import '../features/admin/usuarios_tela.dart';
 import '../features/admin/vendedores_tela.dart';
 import '../features/auditoria/auditoria_tela.dart';
+import '../features/assinatura/loja_inativa_tela.dart';
+import '../features/auth/cadastro_tela.dart';
 import '../features/auth/conta_tela.dart';
 import '../features/auth/definir_senha_tela.dart';
 import '../features/auth/esqueci_senha_tela.dart';
@@ -23,13 +25,20 @@ import 'casca.dart';
 
 final chaveMensagens = GlobalKey<ScaffoldMessengerState>();
 
-const _rotasPublicas = {'/login', '/esqueci-senha', '/definir-senha'};
+const _rotasPublicas = {
+  '/login',
+  '/esqueci-senha',
+  '/definir-senha',
+  '/cadastro',
+  '/confirmar-cadastro',
+};
 
 final roteadorProvider = Provider<GoRouter>((ref) {
-  // O roteador reavalia as guardas quando o login ou o papel mudam.
+  // O roteador reavalia as guardas quando o login, o papel ou o estado da
+  // loja mudam.
   final mudouSessao = ValueNotifier(0);
   ref.listen(
-    sessaoProvider.select((s) => (s.status, s.usuario?.papel)),
+    sessaoProvider.select((s) => (s.status, s.usuario?.papel, s.loja?.estado)),
     (_, _) => mudouSessao.value++,
   );
 
@@ -53,6 +62,18 @@ final roteadorProvider = Provider<GoRouter>((ref) {
       if (caminho == '/login') {
         return state.uri.queryParameters['voltar'] ?? '/';
       }
+      // Links de e-mail abrem mesmo com alguém logado no aparelho.
+      if (_rotasPublicas.contains(caminho)) return null;
+
+      // Loja sem pagamento confirmado ou em análise só vê a tela de loja
+      // inativa (spec 19, item 36). Suspensa navega, com a faixa de aviso.
+      final loja = sessao.loja;
+      if (loja != null && loja.bloqueada) {
+        return caminho == '/loja-inativa' ? null : '/loja-inativa';
+      }
+      if (caminho == '/loja-inativa' && loja != null && !loja.suspensa) {
+        return '/';
+      }
       if (caminho.startsWith('/admin') && !sessao.admin) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           chaveMensagens.currentState?.showSnackBar(
@@ -73,6 +94,20 @@ final roteadorProvider = Provider<GoRouter>((ref) {
         path: '/definir-senha',
         builder: (context, state) =>
             DefinirSenhaTela(token: state.uri.queryParameters['token'] ?? ''),
+      ),
+      GoRoute(
+        path: '/cadastro',
+        builder: (context, state) => const CadastroTela(),
+      ),
+      GoRoute(
+        path: '/confirmar-cadastro',
+        builder: (context, state) => ConfirmarCadastroTela(
+          token: state.uri.queryParameters['token'] ?? '',
+        ),
+      ),
+      GoRoute(
+        path: '/loja-inativa',
+        builder: (context, state) => const LojaInativaTela(),
       ),
       // Uma branch por aba, cada uma com o próprio Navigator. As chaves são
       // fixas (criadas uma vez com o roteador) para o Flutter reaproveitar
