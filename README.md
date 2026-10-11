@@ -52,7 +52,7 @@ não para distribuir.
 ```bash
 flutter build apk --release \
   --dart-define=API_URL=https://api.seudominio.com.br \
-  --dart-define=URL_TERMOS=https://.../termos --dart-define=URL_PRIVACIDADE=https://.../privacidade
+  --dart-define=URL_TERMOS=https://api.seudominio.com.br/termos --dart-define=URL_PRIVACIDADE=https://api.seudominio.com.br/privacidade
 # APK em build/app/outputs/flutter-apk/app-release.apk (para mandar direto aos convidados)
 # Para a Play Store: flutter build appbundle --release com os mesmos --dart-define
 ```
