@@ -1,4 +1,4 @@
-package com.example.auditor_vendas_front
+package com.emplakey.app
 
 import io.flutter.embedding.android.FlutterActivity
 

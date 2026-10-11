@@ -24,6 +24,41 @@ flutter run --dart-define=URL_TERMOS=https://.../termos --dart-define=URL_PRIVAC
             --dart-define=VERSAO_TERMOS=2026-10
 ```
 
+## Gerar o app (Android)
+
+O `applicationId` é `com.emplakey.app`: a Play Store não deixa trocar depois de publicar.
+
+**Chave de release (uma vez só).** Guarde o arquivo `.jks` e as senhas fora do repositório e com
+cópia de segurança: sem eles, não dá para publicar atualizações com o mesmo app.
+
+```bash
+keytool -genkey -v -keystore ~/emplakey-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias emplakey
+```
+
+E o `android/key.properties` (já está no `.gitignore`):
+
+```properties
+storeFile=/home/<usuario>/emplakey-release.jks
+storePassword=...
+keyAlias=emplakey
+keyPassword=...
+```
+
+Sem o `key.properties`, o release sai assinado com a chave de debug: serve para testar no aparelho,
+não para distribuir.
+
+**Build de produção:**
+
+```bash
+flutter build apk --release \
+  --dart-define=API_URL=https://api.seudominio.com.br \
+  --dart-define=URL_TERMOS=https://.../termos --dart-define=URL_PRIVACIDADE=https://.../privacidade
+# APK em build/app/outputs/flutter-apk/app-release.apk (para mandar direto aos convidados)
+# Para a Play Store: flutter build appbundle --release com os mesmos --dart-define
+```
+
+Suba o `version` do `pubspec.yaml` (o número depois do `+` é o `versionCode`) a cada versão distribuída.
+
 ## Testes
 
 ```bash
