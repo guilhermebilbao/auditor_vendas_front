@@ -51,8 +51,9 @@ não para distribuir.
 
 ```bash
 flutter build apk --release \
-  --dart-define=API_URL=https://api.seudominio.com.br \
-  --dart-define=URL_TERMOS=https://api.seudominio.com.br/termos --dart-define=URL_PRIVACIDADE=https://api.seudominio.com.br/privacidade
+  --dart-define=API_URL=https://www.emplakey.com \
+  --dart-define=URL_TERMOS=https://www.emplakey.com/termos \
+  --dart-define=URL_PRIVACIDADE=https://www.emplakey.com/privacidade
 # APK em build/app/outputs/flutter-apk/app-release.apk (para mandar direto aos convidados)
 # Para a Play Store: flutter build appbundle --release com os mesmos --dart-define
 ```
