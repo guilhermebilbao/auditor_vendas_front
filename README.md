@@ -28,6 +28,11 @@ flutter run --dart-define=URL_TERMOS=https://.../termos --dart-define=URL_PRIVAC
 
 O `applicationId` é `com.emplakey.app`: a Play Store não deixa trocar depois de publicar.
 
+> **Pendente:** a chave de release ainda não foi criada. Os APKs gerados até agora saem com a chave
+> de debug e servem só para teste. Antes da primeira publicação na Play Store, siga os passos abaixo
+> e faça backup do `.jks` e das senhas. Um APK com a chave de release não atualiza um instalado com a
+> de debug: desinstale o de teste antes.
+
 **Chave de release (uma vez só).** Guarde o arquivo `.jks` e as senhas fora do repositório e com
 cópia de segurança: sem eles, não dá para publicar atualizações com o mesmo app.
 
