@@ -23,11 +23,11 @@ const fusoLoja = Duration(hours: -3);
 /// A [versaoTermos] vai junto com o aceite; mude-a quando o texto mudar.
 const urlTermos = String.fromEnvironment(
   'URL_TERMOS',
-  defaultValue: 'https://auditordevendas.com.br/termos',
+  defaultValue: 'https://www.emplakey.com/termos',
 );
 const urlPrivacidade = String.fromEnvironment(
   'URL_PRIVACIDADE',
-  defaultValue: 'https://auditordevendas.com.br/privacidade',
+  defaultValue: 'https://www.emplakey.com/privacidade',
 );
 const versaoTermos = String.fromEnvironment(
   'VERSAO_TERMOS',
