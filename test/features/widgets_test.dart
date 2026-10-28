@@ -70,6 +70,40 @@ const _analise = {
   },
 };
 
+/// Análise v3: com a avaliação do cliente (spec 21).
+final _analiseComCliente = {
+  ..._analise,
+  'avaliacao_cliente': {
+    'perfil_predominante': 'Comparando preços',
+    'clareza_necessidade': {
+      'dificuldade': 2,
+      'justificativa': 'Sabia o modelo',
+    },
+    'engajamento': {'dificuldade': 7, 'justificativa': 'Sumiu 3 dias'},
+    'abertura_informacoes': {
+      'dificuldade': 6,
+      'justificativa': 'Não disse o orçamento',
+    },
+    'postura_negociacao': {
+      'dificuldade': 8,
+      'justificativa': 'Exigiu 15% de desconto',
+    },
+    'cordialidade': {'dificuldade': 1, 'justificativa': 'Educado'},
+    'comprometimento': {
+      'dificuldade': null,
+      'justificativa': 'Nada foi combinado',
+    },
+    'comportamentos_observados': [
+      {'descricao': 'Comparou com outra loja', 'efeito': 'dificultou'},
+      {'descricao': 'Mandou fotos do usado', 'efeito': 'facilitou'},
+    ],
+    'fatores_externos': ['Banco recusou o crédito'],
+    'leitura_imparcial': 'Travou pela exigência de desconto.',
+  },
+  'indice_dificuldade_cliente': 4.8,
+  'faixa_dificuldade_cliente': 'Moderada',
+};
+
 /// Repositório falso do fluxo de QR: cada consulta consome o próximo passo.
 class _RepoQr implements AdminRepo {
   _RepoQr(this.passos);
@@ -235,6 +269,67 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('resumo lado a lado e aba Cliente (spec 21)', (tester) async {
+      await mostrar(tester, _analiseComCliente);
+
+      expect(find.text('4,8'), findsOneWidget);
+      expect(
+        find.text('Nota 7,2 com um cliente de dificuldade moderada'),
+        findsOneWidget,
+      );
+      expect(find.text('Comparando preços'), findsOneWidget);
+      // A aba Vendedor é a inicial: os critérios do cliente ainda não aparecem.
+      expect(find.text('Engajamento'), findsNothing);
+
+      await tester.tap(find.text('Cliente'));
+      await tester.pumpAndSettle();
+
+      for (final criterio in [
+        'Clareza da necessidade',
+        'Engajamento',
+        'Abertura de informações',
+        'Postura na negociação',
+        'Cordialidade',
+        'Comprometimento',
+      ]) {
+        expect(find.text(criterio), findsOneWidget);
+      }
+      expect(find.text('8/10'), findsOneWidget);
+      expect(find.text('não avaliado'), findsOneWidget);
+      expect(find.text('Comparou com outra loja'), findsOneWidget);
+      expect(find.byIcon(Icons.trending_up), findsOneWidget);
+      expect(find.byIcon(Icons.trending_down), findsOneWidget);
+      expect(find.text('Banco recusou o crédito'), findsOneWidget);
+      expect(find.text('Travou pela exigência de desconto.'), findsOneWidget);
+      // Os critérios do vendedor ficam na outra aba.
+      expect(find.text('Agilidade'), findsNothing);
+    });
+
+    testWidgets('auditoria v2: aba Cliente oferece refazer', (tester) async {
+      var refeita = false;
+      await tester.pumpWidget(
+        app(
+          SingleChildScrollView(
+            child: AnaliseView(
+              AnaliseIA.deJson(_analise),
+              aoRefazer: () => refeita = true,
+            ),
+          ),
+        ),
+      );
+      // Sem análise do cliente, o resumo lado a lado não aparece.
+      expect(find.text('Dificuldade do cliente'), findsNothing);
+
+      await tester.tap(find.text('Cliente'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('A análise do cliente não existe'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Refazer auditoria'));
+      expect(refeita, isTrue);
+    });
+
     testWidgets('histórico: variação da nota e selo de feedback entregue', (
       tester,
     ) async {
@@ -248,6 +343,7 @@ void main() {
             'probabilidade_conversao': 70,
             'nota_geral': nota,
             'feedback_entregue_em': entregue,
+            'indice_dificuldade_cliente': id == 2 ? 7.5 : null,
           });
       await tester.pumpWidget(
         app(
@@ -265,6 +361,8 @@ void main() {
       expect(find.text('↑ +1,5 desde a anterior'), findsOneWidget);
       expect(find.text('feedback entregue'), findsOneWidget);
       expect(find.text('sem nota (auditoria antiga)'), findsOneWidget);
+      // Só a auditoria v3 tem a dificuldade do cliente.
+      expect(find.text('cliente: dificuldade alta'), findsOneWidget);
     });
   });
 

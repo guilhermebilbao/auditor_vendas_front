@@ -229,3 +229,39 @@ class TituloSecao extends StatelessWidget {
     );
   }
 }
+
+/// Índice de dificuldade do cliente (spec 21), na escala própria de cores.
+class DificuldadeDestaque extends StatelessWidget {
+  const DificuldadeDestaque(this.indice, {super.key, this.tamanho = 22});
+
+  final double? indice;
+  final double tamanho;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = corDaDificuldade(indice);
+    return Container(
+      constraints: BoxConstraints(minWidth: tamanho * 2.2),
+      padding: EdgeInsets.symmetric(
+        horizontal: tamanho * 0.4,
+        vertical: tamanho * 0.2,
+      ),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        formatarNota(indice),
+        textAlign: TextAlign.center,
+        semanticsLabel: indice == null
+            ? 'dificuldade do cliente não avaliada'
+            : 'dificuldade do cliente ${formatarNota(indice)}',
+        style: TextStyle(
+          color: cor,
+          fontSize: tamanho,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}

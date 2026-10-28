@@ -86,10 +86,30 @@ class _AuditoriaTelaState extends ConsumerState<AuditoriaTela> {
     );
   }
 
+  /// Refaz a auditoria do lead (`?forcar=true`) para gerar a análise do
+  /// cliente; ao terminar, abre a auditoria nova (spec 21, etapa 2, item 5).
+  void _refazer(int leadId) {
+    ref.read(auditarProvider(leadId).notifier).auditar(forcar: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final valor = ref.watch(auditoriaProvider(widget.id));
     final auditoria = _atualizada ?? valor.value;
+    final leadId = auditoria?.leadId;
+    final refazendo =
+        leadId != null && ref.watch(auditarProvider(leadId)).emAndamento;
+    if (leadId != null) {
+      ref.listen(auditarProvider(leadId), (antes, agora) {
+        if (antes?.emAndamento != true) return;
+        if (agora.erro != null) {
+          snackErro(context, agora.erro!);
+        } else if (agora.resultado?.auditoriaId case final id?
+            when id != widget.id) {
+          context.pushReplacement('/auditorias/$id');
+        }
+      });
+    }
 
     if (auditoria != null && !_observacaoCarregada) {
       _observacaoCarregada = true;
@@ -108,6 +128,21 @@ class _AuditoriaTelaState extends ConsumerState<AuditoriaTela> {
             ),
         ],
       ),
+      bottomNavigationBar: refazendo
+          ? const SafeArea(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(),
+                    SizedBox(height: 6),
+                    Text('Refazendo a auditoria…'),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: auditoria == null
           ? (valor.hasError
                 ? ErroTela(
@@ -145,7 +180,7 @@ class _AuditoriaTelaState extends ConsumerState<AuditoriaTela> {
             ),
           ),
         const SizedBox(height: 12),
-        AnaliseView(a.analise),
+        AnaliseView(a.analise, aoRefazer: () => _refazer(a.leadId)),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),

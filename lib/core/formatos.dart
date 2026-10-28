@@ -110,6 +110,17 @@ String formatarVariacao(double variacao) {
 String formatarCriterio(int? nota) =>
     nota == null ? 'não avaliado' : '$nota/10';
 
+/// Dificuldade imposta pelo cliente (spec 21); `null` vira "não avaliado".
+String formatarDificuldade(int? dificuldade) =>
+    dificuldade == null ? 'não avaliado' : '$dificuldade/10';
+
+/// Faixa do índice de dificuldade, com as mesmas fronteiras do backend.
+String faixaDificuldade(double indice) => indice < 4
+    ? 'Baixa'
+    : indice < 7
+    ? 'Moderada'
+    : 'Alta';
+
 String formatarProbabilidade(num? valor) =>
     valor == null ? '—' : '${valor.round()}%';
 
@@ -142,6 +153,15 @@ Color corDaNota(double? nota) {
   return const Color(0xFF1B5E20);
 }
 
+/// Dificuldade do cliente: escala própria (cinza → roxo), separada da régua da
+/// nota. Um cliente difícil não é um resultado ruim (spec 21, etapa 2, item 4).
+Color corDaDificuldade(double? dificuldade) {
+  if (dificuldade == null) return Colors.grey;
+  if (dificuldade < 4) return const Color(0xFF78909C);
+  if (dificuldade < 7) return const Color(0xFF7E57C2);
+  return const Color(0xFF4527A0);
+}
+
 Color corDaTemperatura(String temperatura) => switch (temperatura) {
   'Quente' => const Color(0xFFD32F2F),
   'Morno' => const Color(0xFFEF8F00),
@@ -161,4 +181,14 @@ const criterios = <String, String>{
   'contorno_objecoes': 'Contorno de objeções',
   'conducao_fechamento': 'Condução ao fechamento',
   'comunicacao': 'Comunicação',
+};
+
+/// Os 6 critérios da avaliação do cliente (spec 21), na ordem de exibição.
+const criteriosCliente = <String, String>{
+  'clareza_necessidade': 'Clareza da necessidade',
+  'engajamento': 'Engajamento',
+  'abertura_informacoes': 'Abertura de informações',
+  'postura_negociacao': 'Postura na negociação',
+  'cordialidade': 'Cordialidade',
+  'comprometimento': 'Comprometimento',
 };

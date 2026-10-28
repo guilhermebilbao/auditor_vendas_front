@@ -38,6 +38,18 @@ class ClienteApi {
       _RequestIdInterceptor(),
       AuthInterceptor(sessao, dio),
       if (kDebugMode) _ObsoletaInterceptor(),
+      if (kDebugMode)
+        InterceptorsWrapper(
+          onError: (e, h) {
+            debugPrint(
+              'API_ERRO ${e.requestOptions.method} ${e.requestOptions.uri} '
+              'status=${e.response?.statusCode} tipo=${e.type} '
+              'rid=${e.requestOptions.headers['X-Request-ID']} '
+              'corpo=${e.response?.data} msg=${e.message} erro=${e.error}',
+            );
+            h.next(e);
+          },
+        ),
     ]);
   }
 

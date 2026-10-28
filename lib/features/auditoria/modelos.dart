@@ -14,6 +14,80 @@ class Criterio {
   );
 }
 
+/// Quanto o cliente dificultou um aspecto da negociação (spec 21): 0 = facilitou,
+/// 10 = dificultou muito. `dificuldade == null` aparece como "não avaliado".
+class CriterioCliente {
+  const CriterioCliente({this.dificuldade, this.justificativa = ''});
+
+  final int? dificuldade;
+  final String justificativa;
+
+  factory CriterioCliente.deJson(Map<String, dynamic> j) => CriterioCliente(
+    dificuldade: inteiro(j['dificuldade']),
+    justificativa: texto(j['justificativa']),
+  );
+}
+
+/// Comportamento do cliente observado na conversa e o efeito na negociação.
+class ComportamentoCliente {
+  const ComportamentoCliente({
+    required this.descricao,
+    required this.dificultou,
+  });
+
+  final String descricao;
+
+  /// `false` = facilitou.
+  final bool dificultou;
+
+  factory ComportamentoCliente.deJson(Map<String, dynamic> j) =>
+      ComportamentoCliente(
+        descricao: texto(j['descricao']),
+        dificultou: texto(j['efeito']) != 'facilitou',
+      );
+}
+
+/// Avaliação do comportamento do cliente (schema `AvaliacaoCliente`, spec 21).
+class AvaliacaoCliente {
+  const AvaliacaoCliente({
+    required this.perfil,
+    required this.criterios,
+    required this.comportamentos,
+    required this.fatoresExternos,
+    required this.leituraImparcial,
+  });
+
+  final String perfil;
+
+  /// Por critério (`clareza_necessidade`, `engajamento`, ...).
+  final Map<String, CriterioCliente> criterios;
+  final List<ComportamentoCliente> comportamentos;
+  final List<String> fatoresExternos;
+  final String leituraImparcial;
+
+  static const _naoCriterios = {
+    'perfil_predominante',
+    'comportamentos_observados',
+    'fatores_externos',
+    'leitura_imparcial',
+  };
+
+  factory AvaliacaoCliente.deJson(Map<String, dynamic> j) => AvaliacaoCliente(
+    perfil: texto(j['perfil_predominante']),
+    criterios: {
+      for (final e in j.entries)
+        if (!_naoCriterios.contains(e.key) && e.value is Map)
+          e.key: CriterioCliente.deJson(mapa(e.value)),
+    },
+    comportamentos: [
+      for (final c in (j['comportamentos_observados'] as List?) ?? const [])
+        if (c is Map) ComportamentoCliente.deJson(mapa(c)),
+    ],
+    fatoresExternos: listaDeTextos(j['fatores_externos']),
+    leituraImparcial: texto(j['leitura_imparcial']),
+  );
+}
+
 /// Resultado da auditoria com IA (schema `AnaliseIA`).
 class AnaliseIA {
   const AnaliseIA({
@@ -31,6 +105,9 @@ class AnaliseIA {
     required this.probabilidadeConversao,
     required this.feedbackVendedor,
     required this.proximosPassos,
+    this.cliente,
+    this.indiceDificuldadeCliente,
+    this.faixaDificuldadeCliente,
   });
 
   final String veiculoInteresse;
@@ -57,6 +134,13 @@ class AnaliseIA {
   final String feedbackVendedor;
   final List<String> proximosPassos;
 
+  /// Nula nas auditorias anteriores ao prompt v3 (spec 21).
+  final AvaliacaoCliente? cliente;
+
+  /// Calculados pelo backend: média dos critérios do cliente e a faixa.
+  final double? indiceDificuldadeCliente;
+  final String? faixaDificuldadeCliente;
+
   factory AnaliseIA.deJson(Map<String, dynamic> j) {
     final negocio = mapa(j['perfil_do_negocio']);
     final lead = mapa(j['qualificacao_lead']);
@@ -80,6 +164,11 @@ class AnaliseIA {
       probabilidadeConversao: inteiro(j['probabilidade_conversao']),
       feedbackVendedor: texto(plano['feedback_vendedor']),
       proximosPassos: listaDeTextos(plano['proximos_passos_sugeridos']),
+      cliente: j['avaliacao_cliente'] is Map
+          ? AvaliacaoCliente.deJson(mapa(j['avaliacao_cliente']))
+          : null,
+      indiceDificuldadeCliente: decimal(j['indice_dificuldade_cliente']),
+      faixaDificuldadeCliente: j['faixa_dificuldade_cliente'] as String?,
     );
   }
 }
@@ -96,6 +185,8 @@ class ResumoAuditoria {
     this.notaGeral,
     this.solicitadaPorNome,
     this.feedbackEntregueEm,
+    this.indiceDificuldadeCliente,
+    this.perfilCliente,
   });
 
   final int id;
@@ -110,6 +201,10 @@ class ResumoAuditoria {
   final String? solicitadaPorNome;
   final DateTime? feedbackEntregueEm;
 
+  /// Nulos nas auditorias anteriores ao prompt v3 (spec 21).
+  final double? indiceDificuldadeCliente;
+  final String? perfilCliente;
+
   factory ResumoAuditoria.deJson(Map<String, dynamic> j) => ResumoAuditoria(
     id: inteiro(j['id']) ?? 0,
     criadoEm: data(j['criado_em']),
@@ -120,6 +215,8 @@ class ResumoAuditoria {
     notaGeral: decimal(j['nota_geral']),
     solicitadaPorNome: j['solicitada_por_nome'] as String?,
     feedbackEntregueEm: data(j['feedback_entregue_em']),
+    indiceDificuldadeCliente: decimal(j['indice_dificuldade_cliente']),
+    perfilCliente: j['perfil_cliente'] as String?,
   );
 }
 

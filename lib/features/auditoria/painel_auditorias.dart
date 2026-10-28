@@ -77,7 +77,10 @@ class PainelAuditorias extends ConsumerWidget {
               ),
             ],
           ),
-          AnaliseView(resultado.analise),
+          AnaliseView(
+            resultado.analise,
+            aoRefazer: () => pedido.auditar(forcar: true),
+          ),
         ],
         const TituloSecao('Histórico de auditorias'),
         ValorAssincrono(
@@ -245,6 +248,13 @@ class ItemHistorico extends StatelessWidget {
                             formatarProbabilidade(a.probabilidadeConversao),
                             cor: tema.colorScheme.primary,
                           ),
+                          if (a.indiceDificuldadeCliente case final d?)
+                            Selo(
+                              'cliente: dificuldade '
+                              '${faixaDificuldade(d).toLowerCase()}',
+                              cor: corDaDificuldade(d),
+                              icone: Icons.person_outline,
+                            ),
                           if (a.feedbackEntregueEm != null)
                             const Selo(
                               'feedback entregue',
