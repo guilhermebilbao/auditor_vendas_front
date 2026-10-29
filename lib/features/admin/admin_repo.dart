@@ -159,6 +159,7 @@ class AdminRepo {
     bool? boasVindasAtiva,
     String? boasVindasTexto,
     int? boasVindasEsperaSeg,
+    List<String>? boasVindasVariacoes,
   }) async {
     final resposta = await _api.patch(
       '/loja',
@@ -171,6 +172,7 @@ class AdminRepo {
         'boas_vindas_ativa': ?boasVindasAtiva,
         'boas_vindas_texto': ?boasVindasTexto,
         'boas_vindas_espera_seg': ?boasVindasEsperaSeg,
+        'boas_vindas_variacoes': ?boasVindasVariacoes,
       },
     );
     return Loja.deJson(mapa(resposta.data));

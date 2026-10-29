@@ -57,6 +57,10 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
   final _retencao = TextEditingController();
   final _boasVindasTexto = TextEditingController();
   final _boasVindasEspera = TextEditingController();
+  final _boasVindasVariacoes = List.generate(
+    maxVariacoesBoasVindas,
+    (_) => TextEditingController(),
+  );
   bool _boasVindasAtiva = false;
   Map<String, List<List<String>>> _horario = {};
   Map<String, double> _pesos = {};
@@ -85,6 +89,11 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     _boasVindasAtiva = loja.boasVindasAtiva;
     _boasVindasTexto.text = loja.boasVindasTexto;
     _boasVindasEspera.text = '${loja.boasVindasEsperaSeg}';
+    for (var i = 0; i < _boasVindasVariacoes.length; i++) {
+      _boasVindasVariacoes[i].text = i < loja.boasVindasVariacoes.length
+          ? loja.boasVindasVariacoes[i]
+          : '';
+    }
     _horario = {
       for (final dia in diasDaSemana)
         dia: [
@@ -103,6 +112,9 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     _retencao.dispose();
     _boasVindasTexto.dispose();
     _boasVindasEspera.dispose();
+    for (final c in _boasVindasVariacoes) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -145,6 +157,10 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
             boasVindasAtiva: _boasVindasAtiva,
             boasVindasTexto: _boasVindasTexto.text.trim(),
             boasVindasEsperaSeg: int.parse(_boasVindasEspera.text),
+            boasVindasVariacoes: [
+              for (final c in _boasVindasVariacoes)
+                if (c.text.trim().isNotEmpty) c.text.trim(),
+            ],
           );
       // A sessão guarda a loja: recarrega depois de salvar.
       await ref.read(sessaoProvider.notifier).recarregar();
@@ -203,6 +219,7 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
                     ativa: _boasVindasAtiva,
                     aoLigar: (v) => setState(() => _boasVindasAtiva = v),
                     texto: _boasVindasTexto,
+                    variacoes: _boasVindasVariacoes,
                     espera: _boasVindasEspera,
                     nomeLoja: _nome.text,
                     validarEspera: (v) => _inteiro(v, 30, 600),
@@ -338,6 +355,7 @@ class _SecaoBoasVindas extends StatefulWidget {
     required this.ativa,
     required this.aoLigar,
     required this.texto,
+    required this.variacoes,
     required this.espera,
     required this.nomeLoja,
     required this.validarEspera,
@@ -346,6 +364,7 @@ class _SecaoBoasVindas extends StatefulWidget {
   final bool ativa;
   final ValueChanged<bool> aoLigar;
   final TextEditingController texto;
+  final List<TextEditingController> variacoes;
   final TextEditingController espera;
   final String nomeLoja;
   final FormFieldValidator<String> validarEspera;
@@ -403,7 +422,10 @@ class _SecaoBoasVindasState extends State<_SecaoBoasVindas> {
           'Enviada pelo WhatsApp do vendedor, uma vez por cliente novo, só no '
           'horário comercial e até 5 minutos antes de fechar. Não conta como '
           'resposta do vendedor: o cliente continua "sem resposta" até ele '
-          'responder.',
+          'responder.\n'
+          'Para proteger o número: mostra "digitando…" antes de enviar, varia '
+          'a espera de cada cliente, envia no máximo 10 por hora por WhatsApp '
+          'e não aceita links.',
           style: tema.textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
@@ -452,14 +474,34 @@ class _SecaoBoasVindasState extends State<_SecaoBoasVindas> {
           ),
         ],
         const SizedBox(height: 12),
+        Text('Variações (opcional)', style: tema.textTheme.labelLarge),
+        Text(
+          'Textos alternativos: cada cliente recebe um deles, para as '
+          'mensagens não saírem sempre iguais.',
+          style: tema.textTheme.bodySmall,
+        ),
+        for (var i = 0; i < widget.variacoes.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextFormField(
+              controller: widget.variacoes[i],
+              minLines: 1,
+              maxLines: 4,
+              maxLength: tamanhoMaxBoasVindas,
+              decoration: InputDecoration(labelText: 'Variação ${i + 1}'),
+              validator: (v) => validarTextoBoasVindas(v ?? '', ativa: false),
+            ),
+          ),
+        const SizedBox(height: 12),
         TextFormField(
           controller: widget.espera,
           keyboardType: TextInputType.number,
           decoration: const InputDecoration(
-            labelText: 'Espera antes de enviar (segundos)',
+            labelText: 'Espera mínima antes de enviar (segundos)',
             helperText:
-                'Contada só no horário comercial. Se o vendedor responder '
-                'antes, a boas-vindas não é enviada.',
+                'Contada só no horário comercial; cada cliente ganha de 0 a '
+                '60 segundos a mais. Se o vendedor responder antes, a '
+                'boas-vindas não é enviada.',
             helperMaxLines: 2,
           ),
           validator: widget.validarEspera,

@@ -65,6 +65,7 @@ class Loja {
     this.boasVindasAtiva = false,
     this.boasVindasTexto = '',
     this.boasVindasEsperaSeg = 60,
+    this.boasVindasVariacoes = const [],
   });
 
   final String id;
@@ -97,6 +98,7 @@ class Loja {
   final bool boasVindasAtiva;
   final String boasVindasTexto;
   final int boasVindasEsperaSeg;
+  final List<String> boasVindasVariacoes;
 
   bool get suspensa => estado == EstadoLoja.suspensa;
 
@@ -145,6 +147,7 @@ class Loja {
       boasVindasAtiva: j['boas_vindas_ativa'] == true,
       boasVindasTexto: texto(j['boas_vindas_texto']),
       boasVindasEsperaSeg: inteiro(j['boas_vindas_espera_seg']) ?? 60,
+      boasVindasVariacoes: listaDeTextos(j['boas_vindas_variacoes']),
     );
   }
 }

@@ -44,6 +44,17 @@ void main() {
         contains('{nome}'),
       );
       expect(validarTextoBoasVindas('a' * 501, ativa: false), isNotNull);
+      for (final link in [
+        'Veja em https://loja.com',
+        'Acesse www.loja.com.br',
+        'Catálogo: loja.com.br/carros',
+      ]) {
+        expect(validarTextoBoasVindas(link, ativa: false), contains('links'));
+      }
+      expect(
+        validarTextoBoasVindas('Valores a partir de R\$ 95.000.', ativa: true),
+        isNull,
+      );
     });
   });
 

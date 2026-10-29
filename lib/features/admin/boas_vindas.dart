@@ -7,6 +7,15 @@ const variaveisBoasVindas = ['{cliente}', '{vendedor}', '{loja}'];
 
 const tamanhoMaxBoasVindas = 500;
 
+/// Textos alternativos além do principal; o sistema escolhe um por cliente.
+const maxVariacoesBoasVindas = 2;
+
+// Link em mensagem automática é um sinal comum de spam para o WhatsApp.
+final _link = RegExp(
+  r'(https?://|www\.|\b[a-z0-9-]+\.(com|net|org|br|io|app|me|ly|link|site)\b)',
+  caseSensitive: false,
+);
+
 final _variavel = RegExp(r'\{[^{}]*\}');
 final _semCliente = RegExp(r'[ \t]*,?[ \t]*\{cliente\}');
 
@@ -16,6 +25,10 @@ String? validarTextoBoasVindas(String texto, {required bool ativa}) {
   if (ativa && t.isEmpty) return 'Escreva o texto antes de ligar.';
   if (t.runes.length > tamanhoMaxBoasVindas) {
     return 'Use no máximo $tamanhoMaxBoasVindas caracteres.';
+  }
+  if (_link.hasMatch(t)) {
+    return 'Sem links nem endereços de sites: links em mensagens automáticas '
+        'aumentam o risco de bloqueio do número.';
   }
   for (final m in _variavel.allMatches(t)) {
     if (!variaveisBoasVindas.contains(m.group(0))) {
