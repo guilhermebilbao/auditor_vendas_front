@@ -62,6 +62,9 @@ class Loja {
     this.estado = EstadoLoja.ativa,
     this.inadimplenteDesde,
     this.trialAte,
+    this.boasVindasAtiva = false,
+    this.boasVindasTexto = '',
+    this.boasVindasEsperaSeg = 60,
   });
 
   final String id;
@@ -89,6 +92,11 @@ class Loja {
 
   /// Fim do teste grátis (spec 20); `null` se a loja nunca teve trial.
   final DateTime? trialAte;
+
+  /// Boas-vindas automática (spec 22).
+  final bool boasVindasAtiva;
+  final String boasVindasTexto;
+  final int boasVindasEsperaSeg;
 
   bool get suspensa => estado == EstadoLoja.suspensa;
 
@@ -134,6 +142,9 @@ class Loja {
           : texto(j['estado']),
       inadimplenteDesde: data(j['inadimplente_desde']),
       trialAte: data(j['trial_ate']),
+      boasVindasAtiva: j['boas_vindas_ativa'] == true,
+      boasVindasTexto: texto(j['boas_vindas_texto']),
+      boasVindasEsperaSeg: inteiro(j['boas_vindas_espera_seg']) ?? 60,
     );
   }
 }

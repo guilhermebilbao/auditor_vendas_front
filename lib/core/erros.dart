@@ -47,6 +47,12 @@ String mensagemDoErro(Object erro) {
       return 'Este lead não existe mais (pode ter sido excluído).';
     case 'LEAD_SEM_MENSAGENS':
       return 'Ainda não há mensagens para auditar.';
+    case 'LEAD_PESSOAL':
+      return 'Este é um contato pessoal do vendedor: a conversa não fica '
+          'visível nem é analisada.';
+    case 'PESSOAL_POR_ETIQUETA':
+      return 'Marcado como pessoal pela etiqueta no WhatsApp do vendedor. Para '
+          'desmarcar, ele precisa tirar a etiqueta lá.';
     case 'VENDEDOR_NAO_ENCONTRADO':
     case 'INSTANCIA_NAO_ENCONTRADA':
     case 'AUDITORIA_NAO_ENCONTRADA':

@@ -87,6 +87,16 @@ class LeadsRepo {
     return const JsonEncoder.withIndent('  ').convert(resposta.data);
   }
 
+  /// `PATCH /leads/{id}`: marca ou desmarca como contato pessoal do vendedor
+  /// (spec 22).
+  Future<Lead> marcarPessoal(int id, {required bool pessoal}) async {
+    final resposta = await _api.patch(
+      '/leads/$id',
+      corpo: {'pessoal': pessoal},
+    );
+    return Lead.deJson(mapa(resposta.data));
+  }
+
   /// `DELETE /leads/{id}` (admin): exclusão definitiva.
   Future<void> excluir(int id) => _api.delete('/leads/$id');
 }

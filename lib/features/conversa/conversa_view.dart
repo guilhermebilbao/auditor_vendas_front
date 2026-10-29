@@ -163,10 +163,17 @@ class BalaoMensagem extends StatelessWidget {
     final m = mensagem;
     final tema = Theme.of(context);
     final cores = tema.colorScheme;
-    final fundo = m.doVendedor
+    // A boas-vindas automática (spec 22) fica do lado do vendedor, com outra cor.
+    final fundo = m.automatica
+        ? cores.tertiaryContainer
+        : m.doVendedor
         ? cores.primaryContainer
         : cores.surfaceContainerHighest;
-    final corTexto = m.doVendedor ? cores.onPrimaryContainer : cores.onSurface;
+    final corTexto = m.automatica
+        ? cores.onTertiaryContainer
+        : m.doVendedor
+        ? cores.onPrimaryContainer
+        : cores.onSurface;
     final discreto = TextStyle(
       fontSize: 11,
       color: corTexto.withValues(alpha: 0.7),
@@ -219,7 +226,26 @@ class BalaoMensagem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (m.doVendedor && (m.vendedor ?? '').isNotEmpty)
+            if (m.automatica)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.smart_toy_outlined, size: 14, color: corTexto),
+                    const SizedBox(width: 4),
+                    Text(
+                      'automática',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: corTexto,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (m.doVendedor && (m.vendedor ?? '').isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 2),
                 child: Text(

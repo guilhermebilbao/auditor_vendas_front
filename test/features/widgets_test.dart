@@ -24,6 +24,7 @@ Mensagem _mensagem({
   String conteudo = '',
   String? status,
   bool transcricao = false,
+  bool automatica = false,
 }) => Mensagem.deJson({
   'id': 1,
   'autor': autor,
@@ -33,6 +34,7 @@ Mensagem _mensagem({
   'transcricao': transcricao,
   'status_transcricao': status,
   'enviada_em': '2026-09-30T14:32:00-03:00',
+  'automatica': automatica,
 });
 
 const _analise = {
@@ -158,6 +160,19 @@ void main() {
     testWidgets('vendedor à direita, com o nome', (tester) async {
       await mostrar(tester, _mensagem(autor: 'vendedor', conteudo: 'Olá!'));
       expect(find.text('Bruno'), findsOneWidget);
+      final alinhamento = tester.widget<Align>(find.byType(Align).first);
+      expect(alinhamento.alignment, Alignment.centerRight);
+    });
+
+    testWidgets('boas-vindas automática: selo no lugar do vendedor (spec 22)', (
+      tester,
+    ) async {
+      await mostrar(
+        tester,
+        _mensagem(autor: 'vendedor', conteudo: 'Olá!', automatica: true),
+      );
+      expect(find.text('automática'), findsOneWidget);
+      expect(find.text('Bruno'), findsNothing);
       final alinhamento = tester.widget<Align>(find.byType(Align).first);
       expect(alinhamento.alignment, Alignment.centerRight);
     });

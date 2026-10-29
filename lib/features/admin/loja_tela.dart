@@ -10,6 +10,7 @@ import '../../widgets/selos.dart';
 import '../assinatura/assinatura_repo.dart';
 import '../assinatura/loja_inativa_tela.dart';
 import 'admin_repo.dart';
+import 'boas_vindas.dart';
 
 const _nomesDosDias = {
   'seg': 'Segunda',
@@ -54,6 +55,9 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
   final _nome = TextEditingController();
   final _sla = TextEditingController();
   final _retencao = TextEditingController();
+  final _boasVindasTexto = TextEditingController();
+  final _boasVindasEspera = TextEditingController();
+  bool _boasVindasAtiva = false;
   Map<String, List<List<String>>> _horario = {};
   Map<String, double> _pesos = {};
   bool _carregado = false;
@@ -78,6 +82,9 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     _nome.text = loja.nome;
     _sla.text = '${loja.slaRespostaMin}';
     _retencao.text = '${loja.retencaoMeses}';
+    _boasVindasAtiva = loja.boasVindasAtiva;
+    _boasVindasTexto.text = loja.boasVindasTexto;
+    _boasVindasEspera.text = '${loja.boasVindasEsperaSeg}';
     _horario = {
       for (final dia in diasDaSemana)
         dia: [
@@ -94,6 +101,8 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     _nome.dispose();
     _sla.dispose();
     _retencao.dispose();
+    _boasVindasTexto.dispose();
+    _boasVindasEspera.dispose();
     super.dispose();
   }
 
@@ -133,6 +142,9 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
             retencaoMeses: int.parse(_retencao.text),
             horarioComercial: _horario,
             pesosCriterios: _pesos,
+            boasVindasAtiva: _boasVindasAtiva,
+            boasVindasTexto: _boasVindasTexto.text.trim(),
+            boasVindasEsperaSeg: int.parse(_boasVindasEspera.text),
           );
       // A sessão guarda a loja: recarrega depois de salvar.
       await ref.read(sessaoProvider.notifier).recarregar();
@@ -186,6 +198,15 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
                   ),
                   const TituloSecao('Horário comercial'),
                   for (final dia in diasDaSemana) _dia(dia),
+                  const TituloSecao('Boas-vindas automática'),
+                  _SecaoBoasVindas(
+                    ativa: _boasVindasAtiva,
+                    aoLigar: (v) => setState(() => _boasVindasAtiva = v),
+                    texto: _boasVindasTexto,
+                    espera: _boasVindasEspera,
+                    nomeLoja: _nome.text,
+                    validarEspera: (v) => _inteiro(v, 30, 600),
+                  ),
                   const TituloSecao('Peso dos critérios na nota'),
                   Text(
                     'Peso maior = o critério conta mais na nota geral. Vale '
@@ -306,6 +327,144 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Boas-vindas automática (spec 22, etapa 3, item 1): o interruptor, o texto com
+/// as variáveis, a prévia e a espera.
+class _SecaoBoasVindas extends StatefulWidget {
+  const _SecaoBoasVindas({
+    required this.ativa,
+    required this.aoLigar,
+    required this.texto,
+    required this.espera,
+    required this.nomeLoja,
+    required this.validarEspera,
+  });
+
+  final bool ativa;
+  final ValueChanged<bool> aoLigar;
+  final TextEditingController texto;
+  final TextEditingController espera;
+  final String nomeLoja;
+  final FormFieldValidator<String> validarEspera;
+
+  @override
+  State<_SecaoBoasVindas> createState() => _SecaoBoasVindasState();
+}
+
+class _SecaoBoasVindasState extends State<_SecaoBoasVindas> {
+  @override
+  void initState() {
+    super.initState();
+    widget.texto.addListener(_atualizar);
+  }
+
+  @override
+  void dispose() {
+    widget.texto.removeListener(_atualizar);
+    super.dispose();
+  }
+
+  void _atualizar() => setState(() {});
+
+  /// Põe a variável onde está o cursor (ou no fim).
+  void _inserir(String variavel) {
+    final c = widget.texto;
+    final s = c.selection;
+    final inicio = s.isValid ? s.start : c.text.length;
+    final fim = s.isValid ? s.end : c.text.length;
+    c.value = TextEditingValue(
+      text: c.text.replaceRange(inicio, fim, variavel),
+      selection: TextSelection.collapsed(offset: inicio + variavel.length),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final previa = montarBoasVindas(
+      widget.texto.text,
+      cliente: 'Maria Souza',
+      vendedor: 'Carlos Lima',
+      loja: widget.nomeLoja.isEmpty ? 'Sua loja' : widget.nomeLoja,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Enviar boas-vindas a clientes novos'),
+          value: widget.ativa,
+          onChanged: widget.aoLigar,
+        ),
+        Text(
+          'Enviada pelo WhatsApp do vendedor, uma vez por cliente novo, só no '
+          'horário comercial e até 5 minutos antes de fechar. Não conta como '
+          'resposta do vendedor: o cliente continua "sem resposta" até ele '
+          'responder.',
+          style: tema.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: widget.texto,
+          minLines: 2,
+          maxLines: 5,
+          maxLength: tamanhoMaxBoasVindas,
+          decoration: const InputDecoration(
+            labelText: 'Texto',
+            hintText:
+                'Olá, {cliente}! Aqui é o {vendedor}, da {loja}. Já vi sua '
+                'mensagem e te respondo em instantes.',
+            hintMaxLines: 3,
+            alignLabelWithHint: true,
+          ),
+          validator: (v) =>
+              validarTextoBoasVindas(v ?? '', ativa: widget.ativa),
+        ),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final v in variaveisBoasVindas)
+              ActionChip(label: Text(v), onPressed: () => _inserir(v)),
+          ],
+        ),
+        if (widget.texto.text.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Prévia', style: tema.textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: tema.colorScheme.tertiaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              previa,
+              style: TextStyle(color: tema.colorScheme.onTertiaryContainer),
+            ),
+          ),
+          Text(
+            'Com nomes de exemplo. Sem o nome do cliente no WhatsApp, '
+            '{cliente} é omitido.',
+            style: tema.textTheme.bodySmall,
+          ),
+        ],
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: widget.espera,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Espera antes de enviar (segundos)',
+            helperText:
+                'Contada só no horário comercial. Se o vendedor responder '
+                'antes, a boas-vindas não é enviada.',
+            helperMaxLines: 2,
+          ),
+          validator: widget.validarEspera,
+        ),
+      ],
     );
   }
 }

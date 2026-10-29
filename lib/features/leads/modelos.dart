@@ -15,6 +15,8 @@ class Lead {
     required this.aguardandoResposta,
     required this.totalMensagens,
     this.probabilidadeConversao,
+    this.pessoal = false,
+    this.pessoalOrigem,
   });
 
   final int id;
@@ -33,6 +35,17 @@ class Lead {
   final int totalMensagens;
   final int? probabilidadeConversao;
 
+  /// Contato pessoal do vendedor (spec 22): fora das métricas e auditorias, e a
+  /// conversa não fica visível.
+  final bool pessoal;
+
+  /// `app` ou `etiqueta` (no WhatsApp Business do vendedor); `null` se não for
+  /// pessoal.
+  final String? pessoalOrigem;
+
+  /// Só sai tirando a etiqueta no WhatsApp: o app não desmarca.
+  bool get pessoalPorEtiqueta => pessoalOrigem == 'etiqueta';
+
   String get nome => nomeDoCliente(pushName, telefone);
 
   factory Lead.deJson(Map<String, dynamic> j) => Lead(
@@ -47,6 +60,8 @@ class Lead {
     aguardandoResposta: j['aguardando_resposta'] == true,
     totalMensagens: inteiro(j['total_mensagens']) ?? 0,
     probabilidadeConversao: inteiro(j['probabilidade_conversao']),
+    pessoal: j['pessoal'] == true,
+    pessoalOrigem: j['pessoal_origem'] as String?,
   );
 }
 
@@ -101,6 +116,7 @@ class Mensagem {
     required this.enviadaEm,
     this.vendedor,
     this.statusTranscricao,
+    this.automatica = false,
   });
 
   final int id;
@@ -120,6 +136,9 @@ class Mensagem {
   final String? statusTranscricao;
   final DateTime enviadaEm;
 
+  /// Boas-vindas enviada pelo sistema, não pelo vendedor (spec 22).
+  final bool automatica;
+
   bool get doVendedor => autor == 'vendedor';
   bool get audioPendente => statusTranscricao == 'pendente';
   bool get audioFalhou => statusTranscricao == 'falhou';
@@ -135,6 +154,7 @@ class Mensagem {
     transcricao: j['transcricao'] == true,
     statusTranscricao: j['status_transcricao'] as String?,
     enviadaEm: data(j['enviada_em']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+    automatica: j['automatica'] == true,
   );
 }
 
@@ -213,6 +233,7 @@ class FiltrosLeads {
     this.ate = '',
     this.aguardandoResposta = false,
     this.haMaisDe = '',
+    this.pessoais = false,
   });
 
   final String q;
@@ -227,6 +248,9 @@ class FiltrosLeads {
   /// `30m`, `2h` ou `1d`: sem resposta há mais que isso (tempo corrido).
   final String haMaisDe;
 
+  /// Só os contatos pessoais do vendedor (spec 22), para desmarcar.
+  final bool pessoais;
+
   factory FiltrosLeads.daUrl(Map<String, String> q) => FiltrosLeads(
     q: q['q'] ?? '',
     vendedorId: int.tryParse(q['vendedor_id'] ?? ''),
@@ -235,6 +259,7 @@ class FiltrosLeads {
     ate: q['ate'] ?? '',
     aguardandoResposta: q['aguardando_resposta'] == 'true',
     haMaisDe: q['ha_mais_de'] ?? '',
+    pessoais: q['pessoais'] == 'true',
   );
 
   /// Parâmetros para a URL do app e para `GET /leads`.
@@ -246,6 +271,7 @@ class FiltrosLeads {
     if (ate.isNotEmpty) 'ate': ate,
     if (aguardandoResposta) 'aguardando_resposta': 'true',
     if (haMaisDe.isNotEmpty) 'ha_mais_de': haMaisDe,
+    if (pessoais) 'pessoais': 'true',
   };
 
   String paraRota() =>
@@ -271,6 +297,7 @@ class FiltrosLeads {
     ate: ate,
     aguardandoResposta: aguardandoResposta,
     haMaisDe: haMaisDe,
+    pessoais: pessoais,
   );
 
   @override
@@ -282,7 +309,8 @@ class FiltrosLeads {
       other.desde == desde &&
       other.ate == ate &&
       other.aguardandoResposta == aguardandoResposta &&
-      other.haMaisDe == haMaisDe;
+      other.haMaisDe == haMaisDe &&
+      other.pessoais == pessoais;
 
   @override
   int get hashCode => Object.hash(
@@ -293,5 +321,6 @@ class FiltrosLeads {
     ate,
     aguardandoResposta,
     haMaisDe,
+    pessoais,
   );
 }

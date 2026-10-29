@@ -156,6 +156,9 @@ class AdminRepo {
     required int retencaoMeses,
     required Map<String, List<List<String>>> horarioComercial,
     required Map<String, double> pesosCriterios,
+    bool? boasVindasAtiva,
+    String? boasVindasTexto,
+    int? boasVindasEsperaSeg,
   }) async {
     final resposta = await _api.patch(
       '/loja',
@@ -165,6 +168,9 @@ class AdminRepo {
         'retencao_meses': retencaoMeses,
         'horario_comercial': horarioComercial,
         'pesos_criterios': pesosCriterios,
+        'boas_vindas_ativa': ?boasVindasAtiva,
+        'boas_vindas_texto': ?boasVindasTexto,
+        'boas_vindas_espera_seg': ?boasVindasEsperaSeg,
       },
     );
     return Loja.deJson(mapa(resposta.data));

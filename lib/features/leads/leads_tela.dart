@@ -101,7 +101,10 @@ class _LeadsTelaState extends ConsumerState<LeadsTela> {
 
   Future<void> _abrirLead(Lead lead) async {
     final resultado = await context.push<String>('/leads/${lead.id}');
-    if (resultado == 'excluido') _controle.remover(lead.id);
+    // Excluído, ou marcado/desmarcado como contato pessoal: sai desta lista.
+    if (resultado == 'excluido' || resultado == 'pessoal') {
+      _controle.remover(lead.id);
+    }
   }
 
   @override
@@ -167,7 +170,8 @@ class _LeadsTelaState extends ConsumerState<LeadsTela> {
                   'Todos',
                   !f.aguardandoResposta &&
                       f.haMaisDe.isEmpty &&
-                      f.temperatura.isEmpty,
+                      f.temperatura.isEmpty &&
+                      !f.pessoais,
                   atalho,
                 ),
                 chip(
@@ -195,6 +199,16 @@ class _LeadsTelaState extends ConsumerState<LeadsTela> {
                     q: f.q,
                     vendedorId: f.vendedorId,
                     temperatura: 'sem_auditoria',
+                  ),
+                ),
+                // Contatos pessoais do vendedor (spec 22): só aqui, para desmarcar.
+                chip(
+                  'Contatos pessoais',
+                  f.pessoais,
+                  FiltrosLeads(
+                    q: f.q,
+                    vendedorId: f.vendedorId,
+                    pessoais: true,
                   ),
                 ),
               ],

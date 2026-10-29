@@ -60,12 +60,60 @@ class _LeadTelaState extends ConsumerState<LeadTela> {
     ativo: _visivel,
   );
 
-  @override
-  void initState() {
-    super.initState();
-    _conversa.abrir();
-    _novas.iniciar();
-    _pendentes.iniciar();
+  // A conversa só abre depois do detalhe, e nunca num contato pessoal: o backend
+  // responde LEAD_PESSOAL e a conversa não deve ser lida (spec 22).
+  bool _conversaAberta = false;
+
+  void _sincronizarConversa(bool pessoal) {
+    if (pessoal == !_conversaAberta) return;
+    if (pessoal) {
+      _novas.parar();
+      _pendentes.parar();
+    } else {
+      _conversa.abrir();
+      _novas.iniciar();
+      _pendentes.iniciar();
+    }
+    _conversaAberta = !pessoal;
+  }
+
+  Future<void> _marcarPessoal(Lead lead, {required bool pessoal}) async {
+    if (pessoal) {
+      final confirmou = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Marcar como contato pessoal?'),
+          content: Text(
+            '${lead.nome} sai da lista de leads, das métricas e das '
+            'auditorias, não recebe a boas-vindas automática, e as próximas '
+            'mensagens deste contato não serão guardadas.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Marcar como pessoal'),
+            ),
+          ],
+        ),
+      );
+      if (confirmou != true || !mounted) return;
+    }
+    final ok = await executarAcao(
+      context,
+      () => ref
+          .read(leadsRepoProvider)
+          .marcarPessoal(widget.id, pessoal: pessoal),
+      sucesso: pessoal
+          ? 'Marcado como contato pessoal.'
+          : 'Contato de volta à lista de leads.',
+    );
+    if (!ok || !mounted) return;
+    // A lista de onde o lead veio não deve mais mostrá-lo.
+    context.canPop() ? context.pop('pessoal') : context.go('/leads');
   }
 
   @override
@@ -122,6 +170,54 @@ class _LeadTelaState extends ConsumerState<LeadTela> {
     }
 
     final lead = detalhe.lead;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sincronizarConversa(lead.pessoal);
+    });
+    final menu = PopupMenuButton<String>(
+      tooltip: 'Mais opções',
+      onSelected: (acao) => switch (acao) {
+        'pessoal' => _marcarPessoal(lead, pessoal: !lead.pessoal),
+        'exportar' => _exportar(),
+        _ => _excluir(detalhe),
+      },
+      itemBuilder: (context) => [
+        if (!lead.pessoalPorEtiqueta)
+          PopupMenuItem(
+            value: 'pessoal',
+            child: Text(
+              lead.pessoal
+                  ? 'Desmarcar contato pessoal'
+                  : 'Marcar como contato pessoal',
+            ),
+          ),
+        // LGPD: exportar e excluir são só do admin (F06, itens 22 e 23).
+        if (admin) ...const [
+          PopupMenuItem(
+            value: 'exportar',
+            child: Text('Exportar dados do cliente'),
+          ),
+          PopupMenuItem(
+            value: 'excluir',
+            child: Text('Excluir dados do cliente'),
+          ),
+        ],
+      ],
+    );
+
+    if (lead.pessoal) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: const BotaoVoltar(destino: '/leads'),
+          title: Text(lead.nome, overflow: TextOverflow.ellipsis),
+          actions: [menu],
+        ),
+        body: _ContatoPessoal(
+          lead,
+          aoDesmarcar: () => _marcarPessoal(lead, pessoal: false),
+        ),
+      );
+    }
+
     final conversa = Column(
       children: [
         AvisoConexao(visivel: _semConexao),
@@ -147,25 +243,7 @@ class _LeadTelaState extends ConsumerState<LeadTela> {
               ),
             ],
           ),
-          actions: [
-            // LGPD: exportar e excluir são só do admin (F06, itens 22 e 23).
-            if (admin)
-              PopupMenuButton<String>(
-                tooltip: 'Dados do cliente (LGPD)',
-                onSelected: (acao) =>
-                    acao == 'exportar' ? _exportar() : _excluir(detalhe),
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'exportar',
-                    child: Text('Exportar dados do cliente'),
-                  ),
-                  PopupMenuItem(
-                    value: 'excluir',
-                    child: Text('Excluir dados do cliente'),
-                  ),
-                ],
-              ),
-          ],
+          actions: [menu],
           bottom: desktop
               ? null
               : const TabBar(
@@ -210,6 +288,65 @@ class _LeadTelaState extends ConsumerState<LeadTela> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Contato pessoal do vendedor (spec 22, etapa 3, item 3): sem conversa,
+/// métricas nem auditorias.
+class _ContatoPessoal extends StatelessWidget {
+  const _ContatoPessoal(this.lead, {required this.aoDesmarcar});
+
+  final Lead lead;
+  final VoidCallback aoDesmarcar;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        Icon(
+          Icons.lock_person_outlined,
+          size: 48,
+          color: tema.colorScheme.outline,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Contato pessoal do vendedor',
+          textAlign: TextAlign.center,
+          style: tema.textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'A conversa não fica visível, não entra nas métricas nem nas '
+          'auditorias, e as mensagens novas não são guardadas.',
+          textAlign: TextAlign.center,
+          style: tema.textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Vendedor: ${lead.vendedorNome}',
+          textAlign: TextAlign.center,
+          style: tema.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 24),
+        if (lead.pessoalPorEtiqueta)
+          Text(
+            'Marcado como pessoal pela etiqueta no WhatsApp do vendedor. Para '
+            'desmarcar, ele precisa tirar a etiqueta lá.',
+            textAlign: TextAlign.center,
+            style: tema.textTheme.bodySmall,
+          )
+        else
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: aoDesmarcar,
+              icon: const Icon(Icons.undo),
+              label: const Text('Desmarcar contato pessoal'),
+            ),
+          ),
+      ],
     );
   }
 }
