@@ -117,6 +117,9 @@ class Mensagem {
     this.vendedor,
     this.statusTranscricao,
     this.automatica = false,
+    this.reageA,
+    this.editada = false,
+    this.apagada = false,
   });
 
   final int id;
@@ -125,8 +128,10 @@ class Mensagem {
   final String autor;
   final String? vendedor;
 
-  /// `texto`, `audio` ou `midia`.
+  /// `texto`, `audio`, `midia`, `reacao` ou `figurinha` (spec 24).
   final String tipo;
+
+  /// Na reação, o emoji. Vazio na mensagem apagada pelo cliente.
   final String conteudo;
 
   /// O conteúdo é a transcrição de um áudio.
@@ -139,11 +144,22 @@ class Mensagem {
   /// Boas-vindas enviada pelo sistema, não pelo vendedor (spec 22).
   final bool automatica;
 
+  /// Só nas reações: id da mensagem reagida; nulo se ela não está no sistema.
+  final int? reageA;
+
+  /// O autor editou a mensagem; o texto mostrado é o original.
+  final bool editada;
+
+  /// Apagada para todos. Do cliente: sem conteúdo; do vendedor: o texto fica.
+  final bool apagada;
+
   bool get doVendedor => autor == 'vendedor';
   bool get audioPendente => statusTranscricao == 'pendente';
   bool get audioFalhou => statusTranscricao == 'falhou';
   bool get audioTranscrito => tipo == 'audio' && transcricao;
   bool get midiaSemConteudo => tipo == 'midia' && conteudo.isEmpty;
+  bool get reacao => tipo == 'reacao';
+  bool get figurinha => tipo == 'figurinha';
 
   factory Mensagem.deJson(Map<String, dynamic> j) => Mensagem(
     id: inteiro(j['id']) ?? 0,
@@ -155,6 +171,9 @@ class Mensagem {
     statusTranscricao: j['status_transcricao'] as String?,
     enviadaEm: data(j['enviada_em']) ?? DateTime.fromMillisecondsSinceEpoch(0),
     automatica: j['automatica'] == true,
+    reageA: inteiro(j['reage_a']),
+    editada: j['editada'] == true,
+    apagada: j['apagada'] == true,
   );
 }
 

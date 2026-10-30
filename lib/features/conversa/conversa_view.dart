@@ -71,11 +71,17 @@ class _ConversaViewState extends State<ConversaView> {
 
         // Do fim para o começo: mensagens, separadores de dia e, no topo, o
         // marcador de início (ou o carregamento do histórico).
+        final conversa = organizarConversa(c.mensagens);
+        final visiveis = conversa.mensagens;
         final itens = <Widget>[];
-        for (var i = c.mensagens.length - 1; i >= 0; i--) {
-          final m = c.mensagens[i];
-          itens.add(BalaoMensagem(m));
-          final anterior = i > 0 ? c.mensagens[i - 1] : null;
+        for (var i = visiveis.length - 1; i >= 0; i--) {
+          final m = visiveis[i];
+          itens.add(
+            m.reacao
+                ? _ReacaoAvulsa(m)
+                : BalaoMensagem(m, reacoes: conversa.reacoes[m.id] ?? const []),
+          );
+          final anterior = i > 0 ? visiveis[i - 1] : null;
           if (anterior == null ||
               !mesmoDiaNaLoja(anterior.enviadaEm, m.enviadaEm)) {
             itens.add(_SeparadorDia(formatarDia(m.enviadaEm)));
@@ -128,6 +134,69 @@ class _ConversaViewState extends State<ConversaView> {
   }
 }
 
+/// A conversa pronta para exibir: as reações saem da lista e vão para baixo da
+/// mensagem reagida (spec 24).
+typedef ConversaOrganizada = ({
+  List<Mensagem> mensagens,
+  Map<int, List<Mensagem>> reacoes,
+});
+
+/// Separa as reações das mensagens. Vale só a reação mais recente de cada
+/// pessoa em cada mensagem (como no WhatsApp). Reação a uma mensagem que não
+/// está carregada fica na lista, como linha avulsa.
+ConversaOrganizada organizarConversa(List<Mensagem> todas) {
+  final carregadas = {
+    for (final m in todas)
+      if (!m.reacao) m.id,
+  };
+  final ultimas = <(int, String), Mensagem>{};
+  final mensagens = <Mensagem>[];
+  for (final m in todas) {
+    final alvo = m.reageA;
+    if (!m.reacao || alvo == null || !carregadas.contains(alvo)) {
+      mensagens.add(m);
+      continue;
+    }
+    final chave = (alvo, m.autor);
+    final anterior = ultimas[chave];
+    if (anterior == null || m.id > anterior.id) ultimas[chave] = m;
+  }
+  final reacoes = <int, List<Mensagem>>{};
+  for (final r in ultimas.values) {
+    reacoes.putIfAbsent(r.reageA!, () => []).add(r);
+  }
+  return (mensagens: mensagens, reacoes: reacoes);
+}
+
+/// Reação a uma mensagem que não está carregada (ex.: anterior à conexão).
+class _ReacaoAvulsa extends StatelessWidget {
+  const _ReacaoAvulsa(this.reacao);
+
+  final Mensagem reacao;
+
+  @override
+  Widget build(BuildContext context) {
+    final quem = reacao.doVendedor ? 'O vendedor' : 'O cliente';
+    return Align(
+      alignment: reacao.doVendedor
+          ? Alignment.centerRight
+          : Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
+        child: Text(
+          '$quem reagiu com ${reacao.conteudo} a uma mensagem anterior · '
+          '${formatarHora(reacao.enviadaEm)}',
+          style: TextStyle(
+            fontSize: 12,
+            fontStyle: FontStyle.italic,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SeparadorDia extends StatelessWidget {
   const _SeparadorDia(this.texto);
 
@@ -154,9 +223,12 @@ class _SeparadorDia extends StatelessWidget {
 
 /// Balão de uma mensagem: cliente à esquerda, vendedor à direita (F03, item 11).
 class BalaoMensagem extends StatelessWidget {
-  const BalaoMensagem(this.mensagem, {super.key});
+  const BalaoMensagem(this.mensagem, {super.key, this.reacoes = const []});
 
   final Mensagem mensagem;
+
+  /// Reações a esta mensagem, mostradas embaixo do balão (spec 24).
+  final List<Mensagem> reacoes;
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +257,11 @@ class BalaoMensagem extends StatelessWidget {
     );
 
     final Widget corpo;
-    if (m.audioPendente) {
+    if (m.apagada && !m.doVendedor) {
+      corpo = aviso('🚫 Mensagem apagada pelo cliente');
+    } else if (m.figurinha) {
+      corpo = aviso('🖼️ Figurinha ${m.conteudo}'.trim());
+    } else if (m.audioPendente) {
       corpo = aviso('🎤 Transcrevendo áudio…');
     } else if (m.audioFalhou) {
       corpo = aviso('🎤 Áudio (não foi possível transcrever)');
@@ -207,64 +283,122 @@ class BalaoMensagem extends StatelessWidget {
       );
     } else if (m.midiaSemConteudo) {
       corpo = aviso('📎 Mídia (imagem, vídeo ou documento), ainda não exibida');
+    } else if (m.apagada) {
+      // Apagada pelo vendedor: o gerente vê o que foi apagado (spec 24).
+      corpo = Text(
+        m.conteudo,
+        style: TextStyle(
+          color: corTexto,
+          decoration: TextDecoration.lineThrough,
+        ),
+      );
     } else {
       corpo = Text(m.conteudo, style: TextStyle(color: corTexto));
     }
 
-    return Align(
-      alignment: m.doVendedor ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width.clamp(0, 720) * 0.8,
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: fundo,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (m.automatica)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.smart_toy_outlined, size: 14, color: corTexto),
-                    const SizedBox(width: 4),
-                    Text(
-                      'automática',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: corTexto,
-                      ),
+    final horario = [
+      if (m.apagada && m.doVendedor) 'apagada pelo vendedor',
+      if (m.editada) 'editada',
+      formatarHora(m.enviadaEm),
+    ].join(' · ');
+
+    final balao = Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width.clamp(0, 720) * 0.8,
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: fundo,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (m.automatica)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.smart_toy_outlined, size: 14, color: corTexto),
+                  const SizedBox(width: 4),
+                  Text(
+                    'automática',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: corTexto,
                     ),
-                  ],
-                ),
-              )
-            else if (m.doVendedor && (m.vendedor ?? '').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Text(
-                  m.vendedor!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: corTexto,
                   ),
+                ],
+              ),
+            )
+          else if (m.doVendedor && (m.vendedor ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                m.vendedor!,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: corTexto,
                 ),
               ),
-            corpo,
-            const SizedBox(height: 2),
-            Align(
-              alignment: Alignment.bottomRight,
-              widthFactor: 1,
-              child: Text(formatarHora(m.enviadaEm), style: discreto),
             ),
-          ],
+          corpo,
+          const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.bottomRight,
+            widthFactor: 1,
+            child: Text(horario, style: discreto),
+          ),
+        ],
+      ),
+    );
+
+    return Align(
+      alignment: m.doVendedor ? Alignment.centerRight : Alignment.centerLeft,
+      child: reacoes.isEmpty
+          ? balao
+          : Column(
+              crossAxisAlignment: m.doVendedor
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [balao, _Reacoes(reacoes)],
+            ),
+    );
+  }
+}
+
+/// Emojis das reações embaixo do balão, como no WhatsApp.
+class _Reacoes extends StatelessWidget {
+  const _Reacoes(this.reacoes);
+
+  final List<Mensagem> reacoes;
+
+  @override
+  Widget build(BuildContext context) {
+    final cores = Theme.of(context).colorScheme;
+    final quem = reacoes
+        .map((r) => '${r.doVendedor ? 'vendedor' : 'cliente'} ${r.conteudo}')
+        .join(', ');
+    return Transform.translate(
+      offset: const Offset(0, -6),
+      child: Tooltip(
+        message: 'Reações: $quem',
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: cores.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: cores.outlineVariant),
+          ),
+          child: Text(
+            reacoes.map((r) => r.conteudo).join(' '),
+            style: const TextStyle(fontSize: 14),
+          ),
         ),
       ),
     );

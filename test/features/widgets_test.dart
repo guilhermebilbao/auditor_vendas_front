@@ -19,14 +19,18 @@ import 'package:flutter_test/flutter_test.dart';
 import '../apoio.dart';
 
 Mensagem _mensagem({
+  int id = 1,
   String autor = 'lead',
   String tipo = 'texto',
   String conteudo = '',
   String? status,
   bool transcricao = false,
   bool automatica = false,
+  int? reageA,
+  bool editada = false,
+  bool apagada = false,
 }) => Mensagem.deJson({
-  'id': 1,
+  'id': id,
   'autor': autor,
   'vendedor': autor == 'vendedor' ? 'Bruno' : null,
   'tipo': tipo,
@@ -35,6 +39,9 @@ Mensagem _mensagem({
   'status_transcricao': status,
   'enviada_em': '2026-09-30T14:32:00-03:00',
   'automatica': automatica,
+  'reage_a': reageA,
+  'editada': editada,
+  'apagada': apagada,
 });
 
 const _analise = {
@@ -211,6 +218,79 @@ void main() {
         find.text('📎 Mídia (imagem, vídeo ou documento), ainda não exibida'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('figurinha (spec 24)', (tester) async {
+      await mostrar(tester, _mensagem(tipo: 'figurinha', conteudo: '😂'));
+      expect(find.text('🖼️ Figurinha 😂'), findsOneWidget);
+    });
+
+    testWidgets('apagada pelo cliente: sem o texto (spec 24)', (tester) async {
+      await mostrar(tester, _mensagem(apagada: true));
+      expect(find.text('🚫 Mensagem apagada pelo cliente'), findsOneWidget);
+    });
+
+    testWidgets('apagada pelo vendedor: o texto fica, riscado (spec 24)', (
+      tester,
+    ) async {
+      await mostrar(
+        tester,
+        _mensagem(
+          autor: 'vendedor',
+          conteudo: 'Faço por 80 mil',
+          apagada: true,
+        ),
+      );
+      final texto = tester.widget<Text>(find.text('Faço por 80 mil'));
+      expect(texto.style?.decoration, TextDecoration.lineThrough);
+      expect(find.text('apagada pelo vendedor · 14:32'), findsOneWidget);
+    });
+
+    testWidgets('editada: marca junto da hora (spec 24)', (tester) async {
+      await mostrar(tester, _mensagem(conteudo: 'Sábado', editada: true));
+      expect(find.text('editada · 14:32'), findsOneWidget);
+    });
+
+    testWidgets('reações embaixo do balão (spec 24)', (tester) async {
+      await tester.pumpWidget(
+        app(
+          BalaoMensagem(
+            _mensagem(autor: 'vendedor', conteudo: 'Sábado às 10h?'),
+            reacoes: [
+              _mensagem(id: 2, tipo: 'reacao', conteudo: '👍', reageA: 1),
+            ],
+          ),
+        ),
+      );
+      expect(find.text('👍'), findsOneWidget);
+    });
+  });
+
+  group('organizarConversa (spec 24)', () {
+    test('reação vai para a mensagem reagida; vale a mais recente', () {
+      final c = organizarConversa([
+        _mensagem(id: 1, autor: 'vendedor', conteudo: 'Sábado?'),
+        _mensagem(id: 2, tipo: 'reacao', conteudo: '👍', reageA: 1),
+        _mensagem(id: 3, tipo: 'reacao', conteudo: '❤️', reageA: 1),
+        _mensagem(
+          id: 4,
+          autor: 'vendedor',
+          tipo: 'reacao',
+          conteudo: '😂',
+          reageA: 1,
+        ),
+      ]);
+      expect(c.mensagens.map((m) => m.id), [1]);
+      expect(c.reacoes[1]!.map((r) => r.conteudo), ['❤️', '😂']);
+    });
+
+    test('reação a mensagem fora da lista fica avulsa', () {
+      final c = organizarConversa([
+        _mensagem(id: 5, tipo: 'reacao', conteudo: '👍', reageA: 99),
+        _mensagem(id: 6, tipo: 'reacao', conteudo: '👍'),
+      ]);
+      expect(c.mensagens.map((m) => m.id), [5, 6]);
+      expect(c.reacoes, isEmpty);
     });
   });
 
