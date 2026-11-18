@@ -62,6 +62,7 @@ class Loja {
     this.estado = EstadoLoja.ativa,
     this.inadimplenteDesde,
     this.trialAte,
+    this.boasVindasDisponivel = false,
     this.boasVindasAtiva = false,
     this.boasVindasTexto = '',
     this.boasVindasEsperaSeg = 60,
@@ -94,7 +95,10 @@ class Loja {
   /// Fim do teste grátis (spec 20); `null` se a loja nunca teve trial.
   final DateTime? trialAte;
 
-  /// Boas-vindas automática (spec 22).
+  /// Boas-vindas automática (spec 22). [boasVindasDisponivel] é `false` quando
+  /// o servidor está com a `BOAS_VINDAS_LIGADA` desligada (ou não informa o
+  /// campo): o app esconde a configuração e nada é enviado.
+  final bool boasVindasDisponivel;
   final bool boasVindasAtiva;
   final String boasVindasTexto;
   final int boasVindasEsperaSeg;
@@ -144,6 +148,7 @@ class Loja {
           : texto(j['estado']),
       inadimplenteDesde: data(j['inadimplente_desde']),
       trialAte: data(j['trial_ate']),
+      boasVindasDisponivel: j['boas_vindas_disponivel'] == true,
       boasVindasAtiva: j['boas_vindas_ativa'] == true,
       boasVindasTexto: texto(j['boas_vindas_texto']),
       boasVindasEsperaSeg: inteiro(j['boas_vindas_espera_seg']) ?? 60,

@@ -62,6 +62,7 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     (_) => TextEditingController(),
   );
   bool _boasVindasAtiva = false;
+  bool _boasVindasDisponivel = false;
   Map<String, List<List<String>>> _horario = {};
   Map<String, double> _pesos = {};
   bool _carregado = false;
@@ -86,6 +87,7 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     _nome.text = loja.nome;
     _sla.text = '${loja.slaRespostaMin}';
     _retencao.text = '${loja.retencaoMeses}';
+    _boasVindasDisponivel = loja.boasVindasDisponivel;
     _boasVindasAtiva = loja.boasVindasAtiva;
     _boasVindasTexto.text = loja.boasVindasTexto;
     _boasVindasEspera.text = '${loja.boasVindasEsperaSeg}';
@@ -145,6 +147,7 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
     if (problema != null) return snack(context, problema);
 
     setState(() => _salvando = true);
+    final bv = _boasVindasDisponivel;
     await executarAcao(context, () async {
       await ref
           .read(adminRepoProvider)
@@ -154,13 +157,16 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
             retencaoMeses: int.parse(_retencao.text),
             horarioComercial: _horario,
             pesosCriterios: _pesos,
-            boasVindasAtiva: _boasVindasAtiva,
-            boasVindasTexto: _boasVindasTexto.text.trim(),
-            boasVindasEsperaSeg: int.parse(_boasVindasEspera.text),
-            boasVindasVariacoes: [
-              for (final c in _boasVindasVariacoes)
-                if (c.text.trim().isNotEmpty) c.text.trim(),
-            ],
+            // Desligada no servidor: a seção não aparece e nada dela é enviado.
+            boasVindasAtiva: bv ? _boasVindasAtiva : null,
+            boasVindasTexto: bv ? _boasVindasTexto.text.trim() : null,
+            boasVindasEsperaSeg: bv ? int.parse(_boasVindasEspera.text) : null,
+            boasVindasVariacoes: bv
+                ? [
+                    for (final c in _boasVindasVariacoes)
+                      if (c.text.trim().isNotEmpty) c.text.trim(),
+                  ]
+                : null,
           );
       // A sessão guarda a loja: recarrega depois de salvar.
       await ref.read(sessaoProvider.notifier).recarregar();
@@ -214,16 +220,18 @@ class _LojaTelaState extends ConsumerState<LojaTela> {
                   ),
                   const TituloSecao('Horário comercial'),
                   for (final dia in diasDaSemana) _dia(dia),
-                  const TituloSecao('Boas-vindas automática'),
-                  _SecaoBoasVindas(
-                    ativa: _boasVindasAtiva,
-                    aoLigar: (v) => setState(() => _boasVindasAtiva = v),
-                    texto: _boasVindasTexto,
-                    variacoes: _boasVindasVariacoes,
-                    espera: _boasVindasEspera,
-                    nomeLoja: _nome.text,
-                    validarEspera: (v) => _inteiro(v, 30, 600),
-                  ),
+                  if (_boasVindasDisponivel) ...[
+                    const TituloSecao('Boas-vindas automática'),
+                    _SecaoBoasVindas(
+                      ativa: _boasVindasAtiva,
+                      aoLigar: (v) => setState(() => _boasVindasAtiva = v),
+                      texto: _boasVindasTexto,
+                      variacoes: _boasVindasVariacoes,
+                      espera: _boasVindasEspera,
+                      nomeLoja: _nome.text,
+                      validarEspera: (v) => _inteiro(v, 30, 600),
+                    ),
+                  ],
                   const TituloSecao('Peso dos critérios na nota'),
                   Text(
                     'Peso maior = o critério conta mais na nota geral. Vale '

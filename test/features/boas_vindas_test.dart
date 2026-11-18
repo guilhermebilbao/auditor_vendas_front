@@ -1,3 +1,4 @@
+import 'package:auditor_vendas_front/core/sessao/modelos.dart';
 import 'package:auditor_vendas_front/features/admin/boas_vindas.dart';
 import 'package:auditor_vendas_front/features/leads/modelos.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,5 +76,18 @@ void main() {
     expect(lead.pessoal, isTrue);
     expect(lead.pessoalPorEtiqueta, isTrue);
     expect(Lead.deJson({'id': 2}).pessoal, isFalse);
+  });
+
+  test('boas-vindas só aparece quando o servidor libera', () {
+    expect(Loja.deJson({'id': 'l'}).boasVindasDisponivel, isFalse);
+    expect(
+      Loja.deJson({'boas_vindas_disponivel': false, 'boas_vindas_ativa': true})
+          .boasVindasDisponivel,
+      isFalse,
+    );
+    expect(
+      Loja.deJson({'boas_vindas_disponivel': true}).boasVindasDisponivel,
+      isTrue,
+    );
   });
 }
